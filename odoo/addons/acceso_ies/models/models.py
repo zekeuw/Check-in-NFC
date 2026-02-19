@@ -80,7 +80,7 @@ class AsistenciaProfesor(models.Model):
     id_NFC = fields.Char(string='ID NFC', related='profesor_id.id_NFC', readonly=True, store=True)
     estado_asistencia = fields.Selection([
         ('llego al centro', 'Llegó al Centro'),
-        ('no llego al centro', 'No Llegó al Centro'),
+        ('sale del centro', 'Salió del Centro'),
     ], string='Estado de Asistencia', required=True)
 
 class AsistenciaEstudiante(models.Model):
