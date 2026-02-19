@@ -184,43 +184,6 @@ def vincular_nfc():
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': str(e)})
 
-@app.route("/AsistenciaEstudiante", methods=['POST'])
-def Asistencia_estudiante():
-    datos = request.get_json()
-    
-    try:
-        nfc_id = datos.get("id_NFC")
-        estado_asistencia = datos.get("estado_asistencia")
-
-        estudiantes = models.execute_kw(DB, uid, PASSWORD,
-                                 'acceso_ies.estudiante', 'search_read',
-                                 [[['id_NFC', '=', nfc_id]]],
-                                 {'fields': ['id', 'nombre', 'curso'], 'limit': 1})
-        
-
-        if not estudiantes:
-            return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
-
-        estudiante_encontrado = estudiantes[0]
-        datos_para_odoo = {
-            "id_NFC": nfc_id,
-            "estado_asistencia": estado_asistencia,
-            "estudiante_id": estudiante_encontrado["id"], 
-            "curso": estudiante_encontrado["curso"]
-        }
-
-        nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', [datos_para_odoo])
-        
-        return jsonify({
-            'status': 'success', 
-            'mensaje': f'Asistencia registrada para {estudiante_encontrado["nombre"]}',
-            'registro_id': nuevo_registro_id
-        }), 201
-
-    except Exception as e:
-        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
-
-
 @app.route("/AsistenciaProfesor", methods=['POST'])
 def Asistencia_profesor():
     datos = request.get_json()
@@ -234,18 +197,17 @@ def Asistencia_profesor():
                                  [[['id_NFC', '=', nfc_id]]],
                                  {'fields': ['id', 'nombre'], 'limit': 1})
         
-
         if not profesor:
             return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
 
         profesor_encontrado = profesor[0]
+        
         datos_para_odoo = {
-            "id_NFC": nfc_id,
             "estado_asistencia": estado_asistencia,
-            "estudiante_id": profesor_encontrado["id"], 
+            "profesor_id": profesor_encontrado["id"]
         }
 
-        nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 'create', [datos_para_odoo])
+        nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 'create', [[datos_para_odoo]])
         
         return jsonify({
             'status': 'success', 
@@ -254,7 +216,146 @@ def Asistencia_profesor():
         }), 201
 
     except Exception as e:
+        print(e)
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+
+@app.route("/AsistenciaEstudiante", methods=['POST'])
+def Asistencia_estudiante():
+    datos = request.get_json()
+    
+    try:
+        nfc_id = datos.get("id_NFC")
+        estado_asistencia = datos.get("estado_asistencia")
+
+        estudiantes = models.execute_kw(DB, uid, PASSWORD,
+                                 'acceso_ies.estudiante', 'search_read',
+                                 [[['id_NFC', '=', nfc_id]]],
+                                 {'fields': ['id', 'nombre'], 'limit': 1})
+        
+        if not estudiantes:
+            return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
+
+        estudiante_encontrado = estudiantes[0]
+        
+        datos_para_odoo = {
+            "estado_asistencia": estado_asistencia,
+            "estudiante_id": estudiante_encontrado["id"] 
+        }
+
+        nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', [[datos_para_odoo]])
+        
+        return jsonify({
+            'status': 'success', 
+            'mensaje': f'Asistencia registrada para {estudiante_encontrado["nombre"]}',
+            'registro_id': nuevo_registro_id
+        }), 201
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+    
+@app.route('/api/asistencia', methods=['GET'])
+def get_asistencia():
+    if not uid: 
+        return jsonify({'status': 'error', 'mensaje': 'Sin conexión a Odoo'}), 500 # Corregido el carácter extraño
+    
+    filtro = request.args.get('filtro', 'todos')
+    data_formateada = []
+    
+    try:
+        if filtro in ['todos', 'alumnos']:
+            registros_alumnos = models.execute_kw(
+                DB, uid, PASSWORD, 
+                'acceso_ies.asistencia_estudiante', 
+                'search_read', 
+                [[]], 
+                {
+                    'fields': ['estudiante_id', 'estado_asistencia', 'create_date'], 
+                    'order': 'create_date desc', 
+                    'limit': 50 
+                }
+            )
+            
+            for reg in registros_alumnos:
+                nombre = "Desconocido"
+                if reg.get('estudiante_id'):
+                    if isinstance(reg['estudiante_id'], list) and len(reg['estudiante_id']) > 1:
+                        nombre = reg['estudiante_id'][1]
+                    else:
+                        nombre = str(reg['estudiante_id'])
+
+                tipo = reg.get('estado_asistencia', 'llegada_tarde') 
+                
+                hora_cruda = reg.get('create_date', '--')
+                hora_formateada = hora_cruda
+                if hora_cruda != '--':
+                    try:
+                        dt = datetime.strptime(hora_cruda, '%Y-%m-%d %H:%M:%S')
+                        hora_formateada = dt.strftime('%d/%m/%Y %H:%M')
+                    except:
+                        pass
+
+                data_formateada.append({
+                    "nombre": nombre,
+                    "colectivo": "alumno",
+                    "tipo": tipo,
+                    "hora": hora_formateada,
+                    "raw_date": hora_cruda,
+                    "notas": "Registrado por NFC"
+                })
+
+        if filtro in ['todos', 'profesores']:
+            try:
+                registros_profes = models.execute_kw(
+                    DB, uid, PASSWORD, 
+                    'acceso_ies.asistencia_profesor', 
+                    'search_read', 
+                    [[]], 
+                    {
+                        'fields': ['profesor_id', 'estado_asistencia', 'create_date'], 
+                        'order': 'create_date desc', 
+                        'limit': 50 
+                    }
+                )
+                
+                for reg in registros_profes:
+                    nombre = "Desconocido"
+                    if reg.get('profesor_id'):
+                        if isinstance(reg['profesor_id'], list) and len(reg['profesor_id']) > 1:
+                            nombre = reg['profesor_id'][1]
+                        else:
+                            nombre = str(reg['profesor_id'])
+                            
+                    tipo = reg.get('estado_asistencia', 'salida_anticipada')
+                    hora_cruda = reg.get('create_date', '--')
+                    hora_formateada = hora_cruda
+                    if hora_cruda != '--':
+                        try:
+                            dt = datetime.strptime(hora_cruda, '%Y-%m-%d %H:%M:%S')
+                            hora_formateada = dt.strftime('%d/%m/%Y %H:%M')
+                        except:
+                            pass
+
+                    data_formateada.append({
+                        "nombre": nombre,
+                        "colectivo": "profesor",
+                        "tipo": tipo,
+                        "hora": hora_formateada,
+                        "raw_date": hora_cruda,
+                        "notas": ""
+                    })
+            except Exception as e:
+                print(f"Aviso: No se pudo obtener asistencia de profesores. Error: {e}")
+
+        data_formateada = sorted(data_formateada, key=lambda x: x['raw_date'], reverse=True)
+        
+        for item in data_formateada:
+            item.pop('raw_date', None)
+
+        return jsonify({"status": "success", "data": data_formateada})
+        
+    except Exception as e:
+        print(f"Error al obtener asistencia de Odoo: {e}")
+        return jsonify({"status": "error", "mensaje": str(e)})
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
