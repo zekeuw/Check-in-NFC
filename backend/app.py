@@ -220,5 +220,41 @@ def Asistencia_estudiante():
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
 
+
+@app.route("/AsistenciaProfesor", methods=['POST'])
+def Asistencia_profesor():
+    datos = request.get_json()
+    
+    try:
+        nfc_id = datos.get("id_NFC")
+        estado_asistencia = datos.get("estado_asistencia")
+
+        profesor = models.execute_kw(DB, uid, PASSWORD,
+                                 'acceso_ies.profesor', 'search_read',
+                                 [[['id_NFC', '=', nfc_id]]],
+                                 {'fields': ['id', 'nombre'], 'limit': 1})
+        
+
+        if not profesor:
+            return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
+
+        profesor_encontrado = profesor[0]
+        datos_para_odoo = {
+            "id_NFC": nfc_id,
+            "estado_asistencia": estado_asistencia,
+            "estudiante_id": profesor_encontrado["id"], 
+        }
+
+        nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 'create', [datos_para_odoo])
+        
+        return jsonify({
+            'status': 'success', 
+            'mensaje': f'Asistencia registrada para {profesor_encontrado["nombre"]}',
+            'registro_id': nuevo_registro_id
+        }), 201
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
