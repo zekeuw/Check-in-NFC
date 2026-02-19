@@ -188,6 +188,13 @@ def vincular_nfc():
 def Asistencia_estudiante():
     datos = request.get_json()
     try:
+        nfc_id = datos["id_NFC"]
+        estudiante = models.execute_kw(DB, uid, PASSWORD,
+                                 'acceso_ies.estudiante', 'search_read',
+                                 [[['id_NFC', '=', datos["id_NFC"]]]],
+                                 {'fields': ['nombre', 'curso'], 'limit':1})
+        datos["estudiante_id"] = estudiante["nombre"]
+        datos["curso"] = estudiante["curso"]
         models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', datos)
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': str(e)})
