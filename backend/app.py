@@ -184,5 +184,13 @@ def vincular_nfc():
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': str(e)})
 
+@app.route("/AsistenciaEstudiante", methods=['POST'])
+def Asistencia_estudiante():
+    datos = request.get_json()
+    try:
+        models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', datos)
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': str(e)})
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
