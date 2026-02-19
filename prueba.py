@@ -1,6 +1,6 @@
 import sys
 import requests
-import time
+from datetime import datetime
 
 def verificar_usuario_nfc():
     print("\n--- MODO ESCANER ACTIVADO ---")
@@ -13,7 +13,7 @@ def verificar_usuario_nfc():
             
             if nfc_id:
                 print(f"ID detectado: {nfc_id}")
-                url = "http://10.102.7.232:5000/procesar-datos"
+                url = "http://10.102.7.221:5000/procesar-datos"
 
                 try:
                     datos = {"nfc": nfc_id}
@@ -85,7 +85,7 @@ def Create_Student():
         confirmar = input("\n¿Guardar en Odoo? [S/n]: ").strip().lower()
         
         if confirmar != 'n':
-            url = "http://10.102.7.232:5000/create"
+            url = "http://10.102.7.221:5000/create"
             try:
                 resp = requests.post(url, json=datos_estudiante)
                 if resp.status_code == 200:
@@ -115,7 +115,7 @@ def Salida_Recreo():
             nfc_id = input("Escanea ahora: ").strip()
             
             if nfc_id:
-                url = "http://10.102.7.232:5000/Salida_Recreo"
+                url = "http://10.102.7.221:5000/Salida_Recreo"
 
                 try:
                     datos = {"nfc": nfc_id}
@@ -138,10 +138,50 @@ def Salida_Recreo():
             print("\nDeteniendo escáner y volviendo al menú...")
             return
 
-def funcion_cuatro():
-    print("\n[Ejecutando Función 4]")
-    print("La función 4 ha terminado.")
-    input("Presiona Enter para continuar...")
+def Asistencia_Estudiante():
+    url = "http://10.102.7.221:5000/AsistenciaEstudiante"
+    while True:
+        asistencia = input("Escriba entrada o salida (1/2): ")
+
+        if asistencia == "1":
+            asistencia = "llego tarde"
+        elif asistencia == "2":
+            asistencia = "salida anticipada"
+        else:
+            continue
+
+        nfc = input("Escanee la tarjeta: ")
+
+        datos = {"id_NFC": nfc, "estado_asistencia": asistencia}
+
+        try:
+            resp = requests.post(url, json=datos)
+
+        except Exception as e:
+            print(e)
+
+def Asistencia_Profesor():
+    url = "http://10.102.7.221:5000/AsistenciaProfesor"
+    while True:
+        asistencia = input("Escriba entrada o salida (1/2): ")
+
+        if asistencia == "1":
+            asistencia = "llego al centro"
+        elif asistencia == "2":
+            asistencia = "sale del centro"
+        else:
+            continue
+
+        nfc = input("Escanee la tarjeta: ")
+
+        datos = {"id_NFC": nfc, "estado_asistencia": asistencia}
+
+        try:
+            resp = requests.post(url, json=datos)
+            print(resp)
+        except Exception as e:
+            print(e)
+
 
 # --- MENÚ PRINCIPAL ---
 def mostrar_menu():
@@ -152,8 +192,9 @@ def mostrar_menu():
         print("1. Verificar Usuario (Escanear NFC)")
         print("2. Crear un nuevo estudiante")
         print("3. Verificar salida al recreo")
-        print("4. Opción 4 (A definir)")
-        print("5. Salir del programa")
+        print("4. Registrar asistencia")
+        print("5. Registrar asistencia (profesor)")
+        print("6. Salir del programa")
         print("-" * 30)
 
         opcion = input("Selecciona una opción (1-5): ")
@@ -165,10 +206,12 @@ def mostrar_menu():
         elif opcion == '3':
             Salida_Recreo()
         elif opcion == '4':
-            funcion_cuatro()
-        elif opcion == '5':
+            Asistencia_Estudiante()
+        elif opcion == '6':
             print("Saliendo del sistema. ¡Hasta luego!")
             sys.exit()
+        elif opcion == '5':
+            Asistencia_Profesor()
         else:
             print("Opción no válida, por favor intenta de nuevo.")
 
