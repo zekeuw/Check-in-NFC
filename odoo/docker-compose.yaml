@@ -1,0 +1,42 @@
+services:
+  db-dev:
+    image: postgres:15
+    container_name: odoo-db-ies
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo_pass_dev
+    volumes:
+      - odoo_dev_db_data:/var/lib/postgresql/data
+    networks:
+      - odoo_dev_net
+
+  odoo-dev:
+    image: odoo:18.0
+    container_name: odoo-server-ies
+    depends_on:
+      - db-dev
+    ports:
+      - "8072:8069"
+    environment:
+      - HOST=db-dev
+      - USER=odoo
+      - PASSWORD=odoo_pass_dev
+    volumes:
+      - ./addons:/mnt/extra-addons
+      - odoo_dev_data:/var/lib/odoo
+      - ./config/odoo.conf:/etc/odoo/odoo.conf
+    networks:
+      - odoo_dev_net
+    command: ["odoo", "-c", "/etc/odoo/odoo.conf", "--db_host=db-dev", "-i", "base", "--dev=all"]
+
+volumes:
+  odoo_dev_db_data:
+  odoo_dev_data:
+
+networks:
+  odoo_dev_net:
+    driver: bridge
