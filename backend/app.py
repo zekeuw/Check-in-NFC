@@ -187,17 +187,38 @@ def vincular_nfc():
 @app.route("/AsistenciaEstudiante", methods=['POST'])
 def Asistencia_estudiante():
     datos = request.get_json()
+    
     try:
-        nfc_id = datos["id_NFC"]
-        estudiante = models.execute_kw(DB, uid, PASSWORD,
+        nfc_id = datos.get("id_NFC")
+        estado_asistencia = datos.get("estado_asistencia")
+
+        estudiantes = models.execute_kw(DB, uid, PASSWORD,
                                  'acceso_ies.estudiante', 'search_read',
-                                 [[['id_NFC', '=', datos["id_NFC"]]]],
-                                 {'fields': ['nombre', 'curso'], 'limit':1})
-        datos["estudiante_id"] = estudiante["nombre"]
-        datos["curso"] = estudiante["curso"]
-        models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', datos)
+                                 [[['id_NFC', '=', nfc_id]]],
+                                 {'fields': ['id', 'nombre', 'curso'], 'limit': 1})
+        
+
+        if not estudiantes:
+            return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
+
+        estudiante_encontrado = estudiantes[0]
+        datos_para_odoo = {
+            "id_NFC": nfc_id,
+            "estado_asistencia": estado_asistencia,
+            "estudiante_id": estudiante_encontrado["id"], 
+            "curso": estudiante_encontrado["curso"]
+        }
+
+        nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', [datos_para_odoo])
+        
+        return jsonify({
+            'status': 'success', 
+            'mensaje': f'Asistencia registrada para {estudiante_encontrado["nombre"]}',
+            'registro_id': nuevo_registro_id
+        }), 201
+
     except Exception as e:
-        return jsonify({'status': 'error', 'mensaje': str(e)})
+        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
