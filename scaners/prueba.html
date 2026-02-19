@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistencia Estudiantes</title>
+    <style>
+        
+        *{ box-sizing: border-box; user-select: none; }
+        body {
+            font-family: 'Arial', sans-serif; background-color: #f4f7f6;
+            margin: 0; display: flex; justify-content: center;
+            align-items: center; height: 100vh; overflow: hidden;
+        }
+        .container {
+            background-color: white; padding: 40px; border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center;
+            width: 90%; max-width: 600px;
+        }
+        h1 { color: #333; margin-bottom: 30px; font-size: 28px; }
+        .btn {
+            display: block; width: 100%; padding: 20px; margin: 15px 0;
+            font-size: 22px; font-weight: bold; color: white; border: none;
+            border-radius: 10px; cursor: pointer; transition: transform 0.1s, background-color 0.3s;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-green { background-color: #28a745; }
+        .btn-green:hover { background-color: #218838; }
+        .btn-red { background-color: #dc3545; }
+        .btn-red:hover { background-color: #c82333; }
+        .status-text {
+            margin: 25px 0; font-size: 20px; color: #555; min-height: 60px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <button class="btn btn-green" onclick="prepararLectura('llego tarde')">Entrada (Llegó tarde)</button>
+        <button class="btn btn-red" onclick="prepararLectura('salida anticipada')">Salida (Anticipada)</button>
+        
+        <div id="status" class="status-text">
+            1. Pulse Entrada o Salida<br>2. Pase la tarjeta
+        </div>
+    </div>
+
+    <script>
+        const urlServidor = "http://10.102.7.221:5000/AsistenciaEstudiante";
+        let estadoAsistencia = "";
+        let esperandoLectura = false;
+        let codigoLeido = ""; 
+
+        const statusText = document.getElementById('status');
+
+        function prepararLectura(tipo) {
+            estadoAsistencia = tipo;
+            esperandoLectura = true;
+            codigoLeido = "";
+            
+            statusText.innerHTML = `Registrando: <strong>${tipo.toUpperCase()}</strong><br><span style="color:#0056b3;">Por favor, pase la tarjeta AHORA.</span>`;
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (!esperandoLectura) return;
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                
+                if (codigoLeido.trim() !== "") {
+                    enviarDatos(codigoLeido.trim());
+                    codigoLeido = "";
+                }
+            } else if (e.key.length === 1) {
+                codigoLeido += e.key;
+            }
+        });
+
+        async function enviarDatos(uid) {
+            esperandoLectura = false;
+            
+            statusText.innerHTML = "Enviando datos al servidor...";
+            statusText.style.color = "black";
+
+            const datos = {
+                id_NFC: uid,
+                estado_asistencia: estadoAsistencia
+            };
+
+            try {
+                const response = await fetch(urlServidor, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+
+                if (response.ok) {
+                    statusText.innerHTML = `A ver si espabilamos...`;
+                    statusText.style.color = "green";
+                } else {
+                    statusText.innerHTML = `Usuario no encontrado`;
+                    statusText.style.color = "red";
+                }
+            } catch (error) {
+                console.error("Error de red:", error);
+                statusText.innerHTML = `Error de conexión con el servidor.`;
+                statusText.style.color = "red";
+            }
+
+            setTimeout(reiniciarInterfaz, 3000);
+        }
+
+        function reiniciarInterfaz() {
+            esperandoLectura = false;
+            estadoAsistencia = "";
+            codigoLeido = "";
+            statusText.innerHTML = "1. Pulse Entrada o Salida<br>2. Pase la tarjeta";
+            statusText.style.color = "#555";
+        }
+    </script>
+</body>
+</html>
