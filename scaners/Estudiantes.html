@@ -95,10 +95,10 @@
                 });
 
                 if (response.ok) {
-                    statusText.innerHTML = response.mensaje;
+                    statusText.innerHTML = response.json().mensaje;
                     statusText.style.color = "green";
                 } else {
-                    statusText.innerHTML = response.mensaje;
+                    statusText.innerHTML = response.json().mensaje;
                     statusText.style.color = "red";
                 }
             } catch (error) {
