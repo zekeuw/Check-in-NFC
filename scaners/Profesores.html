@@ -45,7 +45,7 @@
     </div>
 
     <script>
-        const urlServidor = "http://10.102.7.221:5000/AsistenciaProfesores";
+        const urlServidor = "http://10.102.7.221:5000/AsistenciaProfesor";
         let estadoAsistencia = "";
         let esperandoLectura = false;
         let codigoLeido = ""; 
@@ -93,11 +93,13 @@
                     body: JSON.stringify(datos)
                 });
 
+                let data = await response.json()
+
                 if (response.ok) {
-                    statusText.innerHTML = response.json().mensaje;
+                    statusText.innerHTML = data.mensaje;
                     statusText.style.color = "green";
                 } else {
-                    statusText.innerHTML = response.json().mensaje;
+                    statusText.innerHTML = data.mensaje;
                     statusText.style.color = "red";
                 }
             } catch (error) {

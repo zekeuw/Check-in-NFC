@@ -144,9 +144,11 @@ def get_dashboard_data():
             modelo = 'acceso_ies.estudiante'
             campos = ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'recreo', 'salida_anticipada']
 
+        # Omitimos errores si los profesores no tienen los campos recreo/salida_anticipada configurados aún
         try:
             personas = models.execute_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos})
         except Exception:
+            # Fallback en caso de que el modelo profesor no tenga recreo/salida
             campos_basicos = ['id', 'nombre', 'apellidos', 'departamento', 'id_NFC'] if tipo == 'profesores' else ['id', 'nombre', 'apellidos', 'curso', 'id_NFC']
             personas = models.execute_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos_basicos})
 
@@ -175,6 +177,7 @@ def get_dashboard_data():
                 "sync": 100, 
                 "fecha": datetime.now().strftime("%d %b")
             },
+            # Datos simulados para Chart.js (Puedes cambiar esto para que haga un count real en la base de datos)
             "semana": [
                 {"label": "L", "total": 12}, 
                 {"label": "M", "total": 8}, 
@@ -196,6 +199,7 @@ def get_alumnado_completo():
                                         {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento', 'recreo', 'salida_anticipada']})
         return jsonify({"status": "success", "data": estudiantes})
     except Exception as e:
+        # Fallback si no existen los campos de recreo en Odoo
         estudiantes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento']})
         return jsonify({"status": "success", "data": estudiantes})
 
@@ -227,9 +231,8 @@ def vincular_nfc():
 
 @app.route("/AsistenciaProfesor", methods=['POST'])
 def Asistencia_profesor():
-    datos = request.get_json()
-    
     try:
+        datos = request.get_json()
         nfc_id = datos.get("id_NFC")
         estado_asistencia = datos.get("estado_asistencia")
 
@@ -239,7 +242,7 @@ def Asistencia_profesor():
                                  {'fields': ['id', 'nombre'], 'limit': 1})
         
         if not profesor:
-            return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
+            return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'})
 
         profesor_encontrado = profesor[0]
         
@@ -249,12 +252,20 @@ def Asistencia_profesor():
         }
 
         nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 'create', [[datos_para_odoo]])
-        
-        return jsonify({
-            'status': 'success', 
-            'mensaje': f'Asistencia registrada para {profesor_encontrado["nombre"]}',
-            'registro_id': nuevo_registro_id
-        }), 201
+        if estado_asistencia == "llego al centro":
+            
+            return jsonify({
+                'status': 'success',
+                'mensaje': f'Asistencia registrada para {profesor_encontrado["nombre"]}',
+                'registro_id': nuevo_registro_id
+            }), 201
+        else:
+            return jsonify({
+                'status': 'success',
+                'mensaje': f'Salida registrada para {profesor_encontrado["nombre"]}',
+                'registro_id': nuevo_registro_id
+            }), 201
+            
 
     except Exception as e:
         print(e)
@@ -279,10 +290,7 @@ def Asistencia_estudiante():
         estudiante_encontrado = estudiantes[0]
         print(estudiante_encontrado)
         if estudiante_encontrado["salida_anticipada"] == False:
-            return jsonify({
-                'status': 'error',
-                'mensaje': 'El usuario no tiene permitido salir antes de tiempo'
-            })
+            return jsonify({'status': 'error', 'mensaje': 'El estudiante no tiene permisos para salir'}), 404
         
         datos_para_odoo = {
             "estado_asistencia": estado_asistencia,
@@ -309,8 +317,11 @@ def get_profesor():
                              'acceso_ies.profesor', 'search_read',
                              [[['id_NFC', '=', datos["nfc"]]]],
                              {'fields': ['nombre', 'apellidos'], 'limit':1})
+        if not resultado:
+           return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
+        
         return jsonify({
-            'status': 'exito',
+            'status': 'success',
             'resultado_calculado': resultado,
             'mensaje': 'Búsqueda correcta'
         })
