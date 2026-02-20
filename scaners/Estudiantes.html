@@ -58,6 +58,7 @@
             codigoLeido = "";
             
             statusText.innerHTML = `Registrando: <strong>${tipo.toUpperCase()}</strong><br><span style="color:#0056b3;">Por favor, pase la tarjeta AHORA.</span>`;
+            setTimeout(reiniciarInterfaz, 15000)
         }
 
         document.addEventListener('keydown', function(e) {
@@ -94,10 +95,10 @@
                 });
 
                 if (response.ok) {
-                    statusText.innerHTML = `A ver si espabilamos...`;
+                    statusText.innerHTML = response["mensaje"];
                     statusText.style.color = "green";
                 } else {
-                    statusText.innerHTML = `Usuario no encontrado`;
+                    statusText.innerHTML = response["mensaje"];
                     statusText.style.color = "red";
                 }
             } catch (error) {
