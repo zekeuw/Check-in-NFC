@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asistencia Estudiantes</title>
+    <title>Asistencia Profesores</title>
     <style>
         
         *{ box-sizing: border-box; user-select: none; }
@@ -93,12 +93,13 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(datos)
                 });
+                let data = await response.json()
 
                 if (response.ok) {
-                    statusText.innerHTML = response.json().mensaje;
+                    statusText.innerHTML = data.mensaje;
                     statusText.style.color = "green";
                 } else {
-                    statusText.innerHTML = response.json().mensaje;
+                    statusText.innerHTML = data.mensaje;
                     statusText.style.color = "red";
                 }
             } catch (error) {
