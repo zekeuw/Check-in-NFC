@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión IES San Juan de la Rambla</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="brand">
+                <span style="font-size: 1.2rem;"></span> IES SAN JUAN DE LA RAMBLA
+            </div>
+            
+            <button class="hamburger-btn" onclick="toggleMenu()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+
+            <div class="nav-links" id="nav-links">
+                <button class="nav-btn active" onclick="cambiarSeccion('estadisticas', this)">Estadísticas</button>
+                <button class="nav-btn" onclick="cambiarSeccion('alumnado', this)">Alumnado</button>
+                <button class="nav-btn" onclick="cambiarSeccion('profesorado', this)">Profesorado</button>
+                <button class="nav-btn" onclick="cambiarSeccion('asistencia', this)">Asistencia</button>
+                <button class="nav-btn" onclick="cambiarSeccion('nfc', this)">Vinculación NFC</button>
+            </div>
+            <div class="user-profile">
+                <span id="sync-status" class="status-dot"></span>
+                <span id="admin-name">Admin</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="dashboard-wrapper">
+        
+        <div id="sec-estadisticas" class="seccion-app">
+            <div class="grid-main">
+                <section class="panel table-panel">
+                    <div class="panel-header">
+                        <h3>Control de Presencia (Hoy)</h3>
+                        <div class="header-tools" style="display: flex; gap: 10px;">
+                            <select id="filtro-dashboard-tipo" class="form-select" onchange="cargarDashboard()" style="padding: 6px; width: auto;">
+                                <option value="alumnos">Alumnos</option>
+                                <option value="profesores">Profesores</option>
+                            </select>
+                            <input type="text" id="search-input" placeholder="Buscar persona..." class="search-mini">
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Persona / Grupo</th>
+                                    <th>NFC ID</th>
+                                    <th style="text-align: center;">Recreo</th>
+                                    <th style="text-align: center;">Salida</th>
+                                </tr>
+                            </thead>
+                            <tbody id="odoo-table-body">
+                                <tr><td colspan="4" style="text-align:center; padding: 20px;">Conectando con Odoo...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="panel chart-panel">
+                    <div class="panel-header">
+                        <h3>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #475569;">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                            Salidas Anticipadas (Semana)
+                        </h3>
+                    </div>
+                    <div class="chart-container" style="position: relative; height: 250px; width: 100%;">
+                        <canvas id="odoo-chart"></canvas>
+                    </div>
+                    <div class="chart-footer"><p style="margin-top: 10px; color: #94a3b8; font-size: 0.85rem;">Actualizado en tiempo real</p></div>
+                </section>
+            </div>
+            <div class="grid-stats">
+                <div class="stat-widget">
+                    <div class="widget-data">
+                        <span class="w-label">Salidas Hoy</span>
+                        <span class="w-value" id="stat-total-salidas">--</span>
+                    </div>
+                </div>
+                <div class="stat-widget">
+                    <div class="widget-data">
+                        <span class="w-label">Incidencias</span>
+                        <span class="w-value" id="stat-incidencias" style="color: var(--danger)">--</span>
+                    </div>
+                </div>
+                <div class="stat-widget">
+                    <div class="widget-data">
+                        <span class="w-label">Sincronización</span>
+                        <span class="w-value" id="stat-sync-percent">OK</span>
+                    </div>
+                </div>
+                <div class="stat-widget">
+                    <div class="widget-data">
+                        <span class="w-label">Fecha</span>
+                        <span class="w-value" id="current-date">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-alumnado" class="seccion-app" style="display: none;">
+            <div class="grid-main">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>Directorio de Alumnos</h3>
+                        <div class="header-tools" style="display: flex; gap: 10px;">
+                            <input type="text" id="search-alumnado" placeholder="Buscar alumno..." class="search-mini">
+                            <button class="btn-action" onclick="cargarAlumnado()">Actualizar</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Curso</th>
+                                    <th>DNI</th>
+                                    <th>NFC</th>
+                                    <th style="text-align: center;">Recreo</th>
+                                    <th style="text-align: center;">Salida</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alumnado-body">
+                                <tr><td colspan="6" style="text-align:center;">Cargando datos...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header"><h3>Registrar Nuevo Alumno</h3></div>
+                    <div class="form-group">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" id="add-al-nombre" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Apellidos</label>
+                        <input type="text" id="add-al-apellidos" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Curso / Grupo</label>
+                        <select id="add-al-curso" class="form-select">
+                            <option value="" disabled selected>-- Selecciona Curso --</option>
+                            <optgroup label="Secundaria">
+                                <option value="1eso">1º ESO</option>
+                                <option value="2eso">2º ESO</option>
+                                <option value="3eso">3º ESO</option>
+                                <option value="4eso">4º ESO</option>
+                            </optgroup>
+                            <optgroup label="Bachillerato">
+                                <option value="1bach">1º Bachillerato</option>
+                                <option value="2bach">2º Bachillerato</option>
+                            </optgroup>
+                            <optgroup label="Informática (FP)">
+                                <option value="1smr">1º SMR (Medio)</option>
+                                <option value="2smr">2º SMR (Medio)</option>
+                                <option value="1dam">1º DAM (Superior)</option>
+                                <option value="2dam">2º DAM (Superior)</option>
+                            </optgroup>
+                            <optgroup label="Agraria / Forestales (FP)">
+                                <option value="1for">1º Forestales (Medio)</option>
+                                <option value="2for">2º Forestales (Medio)</option>
+                                <option value="1gsfor">1º Gestión Forestal (Superior)</option>
+                                <option value="2gsfor">2º Gestión Forestal (Superior)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">DNI / Documento</label>
+                        <input type="text" id="add-al-dni" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Fecha de Nacimiento</label>
+                        <input type="date" id="add-al-fecha" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Código NFC (Opcional)</label>
+                        <input type="text" id="add-al-nfc" class="form-input" placeholder="Escanea o deja vacío">
+                    </div>
+                    <button class="btn-action btn-large" style="width:100%;" onclick="crearAlumnoDesdeWeb()">REGISTRAR EN ODOO</button>
+                    <div id="add-al-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-profesorado" class="seccion-app" style="display: none;">
+            <div class="grid-main">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>Directorio de Profesores</h3>
+                        <div class="header-tools" style="display: flex; gap: 10px;">
+                            <input type="text" id="search-profesorado" placeholder="Buscar profesor..." class="search-mini">
+                            <button class="btn-action" onclick="cargarProfesorado()">Actualizar</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Departamento</th>
+                                    <th>DNI</th>
+                                    <th>NFC</th>
+                                </tr>
+                            </thead>
+                            <tbody id="profesorado-body">
+                                <tr><td colspan="4" style="text-align:center;">Cargando datos...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header"><h3>Registrar Nuevo Profesor</h3></div>
+                    <div class="form-group">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" id="add-pr-nombre" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Apellidos</label>
+                        <input type="text" id="add-pr-apellidos" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Departamento</label>
+                        <select id="add-pr-departamento" class="form-select">
+                            <option value="" disabled selected>-- Selecciona Departamento --</option>
+                            <option value="informatica">Informática</option>
+                            <option value="agraria">Agraria</option>
+                            <option value="matematicas">Matemáticas</option>
+                            <option value="lengua">Lengua Castellana</option>
+                            <option value="ingles">Inglés</option>
+                            <option value="biologia_geologia">Biología y Geología</option>
+                            <option value="fisica_quimica">Física y Química</option>
+                            <option value="educacion_fisica">Educación Física</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">DNI / Documento</label>
+                        <input type="text" id="add-pr-dni" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Código NFC (Opcional)</label>
+                        <input type="text" id="add-pr-nfc" class="form-input" placeholder="Escanea o deja vacío">
+                    </div>
+                    <button class="btn-action btn-large" style="width:100%;" onclick="crearProfesorDesdeWeb()">REGISTRAR EN ODOO</button>
+                    <div id="add-pr-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-asistencia" class="seccion-app" style="display: none;">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Registro de Incidencias de Asistencia</h3>
+                    <div class="header-tools" style="display: flex; gap: 10px;">
+                        <select id="filtro-asistencia" class="form-select" style="padding: 6px 12px; width: auto;" onchange="cargarAsistencia()">
+                            <option value="todos">Todos</option>
+                            <option value="alumnos">Solo Alumnos</option>
+                            <option value="profesores">Solo Profesores</option>
+                        </select>
+                        <button class="btn-action" onclick="cargarAsistencia()">Actualizar</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Colectivo</th>
+                                <th>Tipo de Incidencia</th>
+                                <th>Hora / Fecha</th>
+                                <th>Notas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="asistencia-body">
+                            <tr><td colspan="5" style="text-align:center;">Cargando registros...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-nfc" class="seccion-app" style="display: none;">
+            <div class="grid-main">
+                <div class="panel">
+                    <div class="panel-header"><h3>Asignar Nueva Tarjeta</h3></div>
+                    <div class="form-group">
+                        <label class="form-label">1. Colectivo</label>
+                        <select id="select-tipo-nfc" class="form-select" onchange="cargarSelectNFC()">
+                            <option value="alumnos">Alumnos</option>
+                            <option value="profesores">Profesores</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">2. Seleccionar Persona</label>
+                        <select id="select-persona-nfc" class="form-select">
+                            <option value="">Cargando lista...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">3. Código NFC</label>
+                        <input type="text" id="input-nfc-code" class="form-input" placeholder="Escanea la tarjeta o pulsa Enter...">
+                    </div>
+                    <button class="btn-action btn-large" onclick="guardarVinculacion()">GUARDAR VINCULACIÓN</button>
+                    <div id="nfc-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
+                </div>
+                <div class="panel">
+                    <h3>Instrucciones</h3>
+                    <ol style="line-height: 1.8; color: #475569; padding-left: 20px;">
+                        <li>Selecciona si es Alumno o Profesor.</li>
+                        <li>Busca a la persona en el listado.</li>
+                        <li>Haz clic en la casilla de "Código NFC".</li>
+                        <li>Pasa la tarjeta por el lector (se guardará automáticamente).</li>
+                    </ol>
+                    <div class="scan-area" id="console-log" style="display:block;">
+                        > Sistema NFC listo.<br>
+                        > Conectado a módulo: acceso_ies
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+<script>
+   const BASE_URL = 'http://10.102.7.221:5000'; 
+    let miGraficoChartJs = null; 
+    
+    const CURSOS_MAP = {
+        '1eso': '1º ESO', '2eso': '2º ESO', '3eso': '3º ESO', '4eso': '4º ESO',
+        '1bach': '1º Bach', '2bach': '2º Bach',
+        '1smr': '1º SMR', '2smr': '2º SMR', '1dam': '1º DAM', '2dam': '2º DAM',
+        '1for': '1º Forestal', '2for': '2º Forestal', '1gsfor': '1º G. Forestal', '2gsfor': '2º G. Forestal'
+    };
+
+    const DEPT_MAP = {
+        'informatica': 'Informática', 'agraria': 'Agraria', 'matematicas': 'Matemáticas',
+        'lengua': 'Lengua', 'ingles': 'Inglés', 'biologia_geologia': 'Biología',
+        'fisica_quimica': 'Física y Química', 'educacion_fisica': 'Ed. Física'
+    };
+
+    function formatCurso(clave) {
+        if (CURSOS_MAP[clave]) return CURSOS_MAP[clave];
+        return clave ? clave : '--';
+    }
+
+    function formatDept(clave) {
+        if (DEPT_MAP[clave]) return DEPT_MAP[clave];
+        return clave ? clave : 'Docente';
+    }
+
+    function toggleMenu() {
+        let menu = document.getElementById('nav-links');
+        menu.classList.toggle('show-menu');
+    }
+
+    function cambiarSeccion(idSeccion, botonClicado) {
+        let todasLasSecciones = document.getElementsByClassName('seccion-app');
+        for (let i = 0; i < todasLasSecciones.length; i++) {
+            todasLasSecciones[i].style.display = 'none';
+        }
+
+        document.getElementById('sec-' + idSeccion).style.display = 'block';
+
+        let todosLosBotones = document.getElementsByClassName('nav-btn');
+        for (let i = 0; i < todosLosBotones.length; i++) {
+            todosLosBotones[i].classList.remove('active');
+        }
+
+        if (botonClicado) botonClicado.classList.add('active');
+
+        if (idSeccion === 'estadisticas') cargarDashboard();
+        if (idSeccion === 'alumnado') cargarAlumnado();
+        if (idSeccion === 'profesorado') cargarProfesorado();
+        if (idSeccion === 'nfc') cargarSelectNFC();
+        if (idSeccion === 'asistencia') cargarAsistencia();
+
+        document.getElementById('nav-links').classList.remove('show-menu');
+    }
+
+    async function cargarDashboard() {
+        try {
+            let tipoSeleccionado = document.getElementById('filtro-dashboard-tipo').value;
+            let respuesta = await fetch(BASE_URL + '/api/dashboard?tipo=' + tipoSeleccionado);
+            let datos = await respuesta.json();
+            
+            let listaPersonas = datos.alumnos || datos.profesores || datos.data || [];
+            let htmlTabla = '';
+
+            for (let i = 0; i < listaPersonas.length; i++) {
+                let persona = listaPersonas[i];
+                let identificadorNfc = persona.nfc_id || persona.id_NFC;
+                let nombrePersona = persona.name || persona.nombre;
+                
+                let subtitulo = persona.curso ? formatCurso(persona.curso) : formatDept(persona.departamento);
+
+                htmlTabla += '<tr class="' + (identificadorNfc ? '' : 'alert-row') + '">';
+                
+                htmlTabla += '<td>';
+                htmlTabla += '<div class="user-info">';
+                htmlTabla += '<span class="user-name">' + nombrePersona + '</span>';
+                htmlTabla += '<span class="user-meta">' + subtitulo + '</span>';
+                htmlTabla += '</div></td>';
+                
+                htmlTabla += '<td>';
+                if (identificadorNfc) {
+                    htmlTabla += '<span class="nfc-tag">' + identificadorNfc + '</span>';
+                } else {
+                    htmlTabla += '<span class="badge-error">SIN TAG</span>';
+                }
+                htmlTabla += '</td>';
+
+                let recreoClase = persona.recreo ? 'nfc-tag' : 'badge-error'; 
+                let recreoTexto = persona.recreo ? 'EN RECREO' : 'EN CENTRO';
+                htmlTabla += '<td style="text-align:center;">';
+                htmlTabla += '<span class="' + recreoClase + '" style="font-size: 11px;">' + recreoTexto + '</span>';
+                htmlTabla += '</td>';
+
+                let salidaClase = persona.salida_anticipada ? 'badge-error' : 'nfc-tag';
+                let salidaTexto = persona.salida_anticipada ? 'HA SALIDO' : 'EN EL CENTRO';
+                htmlTabla += '<td style="text-align:center;">';
+                htmlTabla += '<span class="' + salidaClase + '" style="font-size: 11px;">' + salidaTexto + '</span>';
+                htmlTabla += '</td>';
+
+                htmlTabla += '</tr>';
+            }
+
+            document.getElementById('odoo-table-body').innerHTML = htmlTabla;
+
+            document.getElementById('stat-total-salidas').innerText = datos.stats?.total_hoy || '--';
+            document.getElementById('stat-incidencias').innerText = datos.stats?.incidencias || '--';
+            document.getElementById('current-date').innerText = datos.stats?.fecha || '--';
+
+            // --- LÓGICA DEL GRÁFICO ---
+            let respuestaAsis = await fetch(BASE_URL + '/api/asistencia?filtro=' + tipoSeleccionado);
+            let jsonAsistencia = await respuestaAsis.json();
+
+            let conteoSemana = [0, 0, 0, 0, 0]; // L, M, X, J, V
+            let etiquetasDias = ['L', 'M', 'X', 'J', 'V'];
+
+            if (jsonAsistencia.status === 'success') {
+                let hoy = new Date();
+                
+                for (let i = 0; i < jsonAsistencia.data.length; i++) {
+                    let reg = jsonAsistencia.data[i];
+                    
+                    if (String(reg.tipo).toLowerCase().includes('salida')) {
+                        let fechaSola = reg.hora.split(' ')[0]; 
+                        let partesFecha = fechaSola.split('/'); 
+                        
+                        if (partesFecha.length === 3) {
+                            let fechaRegistro = new Date(partesFecha[2], partesFecha[1] - 1, partesFecha[0]);
+                            let diferenciaTiempo = hoy.getTime() - fechaRegistro.getTime();
+                            let diferenciaDias = Math.floor(diferenciaTiempo / (1000 * 3600 * 24));
+                            
+                            if (diferenciaDias <= 7) {
+                                let diaSemana = fechaRegistro.getDay();
+                                if (diaSemana >= 1 && diaSemana <= 5) {
+                                    conteoSemana[diaSemana - 1]++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            let diaDeHoy = new Date().getDay();
+            if (diaDeHoy >= 1 && diaDeHoy <= 5) {
+                let salidasActivasHoy = datos.stats.total_hoy || 0;
+                if (salidasActivasHoy > conteoSemana[diaDeHoy - 1]) {
+                    conteoSemana[diaDeHoy - 1] = salidasActivasHoy;
+                }
+            }
+
+            const ctx = document.getElementById('odoo-chart').getContext('2d');
+
+            if (miGraficoChartJs) {
+                miGraficoChartJs.destroy();
+            }
+
+            miGraficoChartJs = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: etiquetasDias,
+                    datasets: [{
+                        label: 'Salidas Anticipadas',
+                        data: conteoSemana,
+                        backgroundColor: '#3b82f6', 
+                        borderRadius: 4,
+                        borderSkipped: false,
+                        barThickness: 30
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, color: '#64748b' },
+                            grid: { color: '#e2e8f0' }
+                        },
+                        x: {
+                            ticks: { color: '#64748b' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+        } catch (error) { 
+            console.error("Error Dashboard:", error); 
+        }
+    }
+
+    async function cargarAlumnado() {
+        let cuerpoTabla = document.getElementById('alumnado-body');
+        try {
+            let respuesta = await fetch(BASE_URL + '/api/alumnado');
+            let json = await respuesta.json();
+            
+            if (json.status === 'success') {
+                let htmlNuevo = '';
+                for (let i = 0; i < json.data.length; i++) {
+                    let alumno = json.data[i];
+                    let dniTexto = alumno.dni ? alumno.dni : '--';
+                    
+                    let etiquetaNfc = alumno.id_NFC ? '<span class="nfc-tag">' + alumno.id_NFC + '</span>' : '<span class="badge-error">PENDIENTE</span>';
+
+                    let estaEnRecreo = alumno.recreo === true;
+                    let switchRecreo = `
+                        <label class="switch">
+                            <input type="checkbox" onchange="cambiarEstadoPersona(${alumno.id}, 'recreo', this.checked, 'alumno')" ${estaEnRecreo ? 'checked' : ''}>
+                            <span class="slider recreo-slider"></span>
+                        </label>
+                    `;
+
+                    let haSalido = alumno.salida_anticipada === true;
+                    let switchSalida = `
+                        <label class="switch">
+                            <input type="checkbox" onchange="cambiarEstadoPersona(${alumno.id}, 'salida_anticipada', this.checked, 'alumno')" ${haSalido ? 'checked' : ''}>
+                            <span class="slider salida-slider"></span>
+                        </label>
+                    `;
+
+                    htmlNuevo += '<tr>';
+                    htmlNuevo += '<td><span class="user-name">' + alumno.nombre + ' ' + (alumno.apellidos || '') + '</span></td>';
+                    htmlNuevo += '<td><span class="user-meta" style="color:#000; font-weight:500;">' + formatCurso(alumno.curso) + '</span></td>';
+                    htmlNuevo += '<td>' + dniTexto + '</td>';
+                    htmlNuevo += '<td style="text-align:center;">' + etiquetaNfc + '</td>';
+                    htmlNuevo += '<td style="text-align:center; vertical-align:middle;">' + switchRecreo + '</td>';
+                    htmlNuevo += '<td style="text-align:center; vertical-align:middle;">' + switchSalida + '</td>';
+                    htmlNuevo += '</tr>';
+                }
+                cuerpoTabla.innerHTML = htmlNuevo;
+            }
+        } catch (error) { 
+            cuerpoTabla.innerHTML = '<tr><td colspan="6" style="color:red; text-align:center;">Error de conexión</td></tr>'; 
+        }
+    }
+
+    async function cambiarEstadoPersona(idPersona, campoCambiar, nuevoValor, tipoPersona) {
+        try {
+            let respuesta = await fetch(BASE_URL + '/api/actualizar_estado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: idPersona,
+                    tipo: tipoPersona,
+                    campo: campoCambiar,
+                    valor: nuevoValor
+                })
+            });
+            
+            let json = await respuesta.json();
+            
+            if (json.status === 'success' || json.status === 'exito') {
+                cargarDashboard();
+            } else {
+                alert('No se pudo actualizar: ' + (json.mensaje || 'Error desconocido'));
+                cargarAlumnado();
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Error de conexión al intentar cambiar el estado.');
+            cargarAlumnado();
+        }
+    }
+
+    async function crearAlumnoDesdeWeb() {
+        let nombre = document.getElementById('add-al-nombre').value.trim();
+        let apellidos = document.getElementById('add-al-apellidos').value.trim();
+        let curso = document.getElementById('add-al-curso').value;
+        let dni = document.getElementById('add-al-dni').value.trim();
+        let fecha = document.getElementById('add-al-fecha').value;
+        let nfc = document.getElementById('add-al-nfc').value.trim();
+        let feedback = document.getElementById('add-al-feedback');
+
+        if (nombre === '' || apellidos === '' || curso === '') {
+            feedback.innerHTML = '<span style="color:red;">Nombre, Apellidos y Curso son obligatorios</span>';
+            return;
+        }
+        
+        feedback.innerHTML = '<span style="color:blue;">Registrando en Odoo...</span>';
+
+        let datosEnviados = { 
+            nombre: nombre, apellidos: apellidos, curso: curso, 
+            dni: dni, fecha_nacimiento: fecha, id_NFC: nfc, tipo: 'alumno' 
+        };
+
+        try {
+            let respuesta = await fetch(BASE_URL + '/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosEnviados)
+            });
+            let json = await respuesta.json();
+            
+            if (json.status === 'exito' || json.status === 'success') {
+                feedback.innerHTML = '<span style="color:green;">Registrado correctamente</span>';
+                document.getElementById('add-al-nombre').value = '';
+                document.getElementById('add-al-apellidos').value = '';
+                document.getElementById('add-al-dni').value = '';
+                document.getElementById('add-al-nfc').value = '';
+                cargarAlumnado();
+            } else { 
+                feedback.innerHTML = '<span style="color:red;">Error: ' + json.mensaje + '</span>'; 
+            }
+        } catch (error) { 
+            feedback.innerHTML = '<span style="color:red;">Error de conexión con el Servidor</span>'; 
+        }
+    }
+
+    async function cargarProfesorado() {
+        let cuerpoTabla = document.getElementById('profesorado-body');
+        try {
+            let respuesta = await fetch(BASE_URL + '/api/profesorado');
+            let json = await respuesta.json();
+            
+            if (json.status === 'success') {
+                let htmlNuevo = '';
+                for (let i = 0; i < json.data.length; i++) {
+                    let profe = json.data[i];
+                    let apellidoTexto = profe.apellidos ? profe.apellidos : '';
+                    let dniTexto = profe.dni ? profe.dni : '--';
+                    
+                    let etiquetaNfc = profe.id_NFC ? '<span class="nfc-tag">' + profe.id_NFC + '</span>' : '<span class="badge-error">PENDIENTE</span>';
+
+                    htmlNuevo += '<tr>';
+                    htmlNuevo += '<td><span class="user-name">' + profe.nombre + ' ' + apellidoTexto + '</span></td>';
+                    htmlNuevo += '<td><span class="user-meta" style="color:#000; font-weight:500;">' + formatDept(profe.departamento) + '</span></td>';
+                    htmlNuevo += '<td>' + dniTexto + '</td>';
+                    htmlNuevo += '<td style="text-align:center;">' + etiquetaNfc + '</td>';
+                    htmlNuevo += '</tr>';
+                }
+                cuerpoTabla.innerHTML = htmlNuevo;
+            }
+        } catch (error) { 
+            cuerpoTabla.innerHTML = '<tr><td colspan="4" style="color:red; text-align:center;">Error cargando profesores</td></tr>'; 
+        }
+    }
+
+    async function crearProfesorDesdeWeb() {
+        let nombre = document.getElementById('add-pr-nombre').value.trim();
+        let apellidos = document.getElementById('add-pr-apellidos').value.trim();
+        let departamento = document.getElementById('add-pr-departamento').value;
+        let dni = document.getElementById('add-pr-dni').value.trim();
+        let nfc = document.getElementById('add-pr-nfc').value.trim();
+        let feedback = document.getElementById('add-pr-feedback');
+
+        if (nombre === '' || departamento === '') {
+            feedback.innerHTML = '<span style="color:red;">Nombre y Departamento son obligatorios</span>';
+            return;
+        }
+        
+        feedback.innerHTML = '<span style="color:blue;">Registrando en Odoo...</span>';
+
+        let datosEnviados = { 
+            nombre: nombre, apellidos: apellidos, departamento: departamento, 
+            dni: dni, id_NFC: nfc, tipo: 'profesor' 
+        };
+
+        try {
+            let respuesta = await fetch(BASE_URL + '/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosEnviados)
+            });
+            let json = await respuesta.json();
+            
+            if (json.status === 'exito' || json.status === 'success') {
+                feedback.innerHTML = '<span style="color:green;">Profesor registrado correctamente</span>';
+                document.getElementById('add-pr-nombre').value = '';
+                document.getElementById('add-pr-apellidos').value = '';
+                document.getElementById('add-pr-dni').value = '';
+                document.getElementById('add-pr-nfc').value = '';
+                cargarProfesorado();
+            } else { 
+                feedback.innerHTML = '<span style="color:red;">Error: ' + json.mensaje + '</span>'; 
+            }
+        } catch (error) { 
+            feedback.innerHTML = '<span style="color:red;">Error de conexión con el Servidor</span>'; 
+        }
+    }
+
+    async function cargarAsistencia() {
+        let cuerpoTabla = document.getElementById('asistencia-body');
+        let filtroSeleccionado = document.getElementById('filtro-asistencia').value;
+        cuerpoTabla.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando datos desde Odoo...</td></tr>';
+        
+        try {
+            let respuesta = await fetch(BASE_URL + '/api/asistencia?filtro=' + filtroSeleccionado);
+            let json = await respuesta.json();
+            
+            if (json.status === 'success') {
+                if (json.data.length === 0) {
+                    cuerpoTabla.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b;">No hay incidencias registradas.</td></tr>';
+                    return;
+                }
+                
+                let htmlNuevo = '';
+                for (let i = 0; i < json.data.length; i++) {
+                    let registro = json.data[i];
+                    
+                    let estiloBadge = "background:#f1f5f9; color:#475569; border: 1px solid #e2e8f0;";
+                    let textoIncidencia = registro.tipo;
+                    
+                    if (String(registro.tipo).toLowerCase().includes('tarde')) { 
+                        estiloBadge = "background:#fef08a; color:#854d0e; border: 1px solid #fde047;"; 
+                        textoIncidencia = "Llegada Tarde"; 
+                    } else if (String(registro.tipo).toLowerCase().includes('salida')) { 
+                        estiloBadge = "background:#fed7aa; color:#9a3412; border: 1px solid #fdba74;"; 
+                        textoIncidencia = "Salida Anticipada"; 
+                    }
+
+                    let notasTexto = registro.notas ? registro.notas : '--';
+
+                    htmlNuevo += '<tr>';
+                    htmlNuevo += '<td><span class="user-name">' + registro.nombre + '</span></td>';
+                    htmlNuevo += '<td><span class="user-meta" style="text-transform: capitalize;">' + registro.colectivo + '</span></td>';
+                    htmlNuevo += '<td><span class="badge-error" style="' + estiloBadge + '">' + textoIncidencia + '</span></td>';
+                    htmlNuevo += '<td><strong>' + registro.hora + '</strong></td>';
+                    htmlNuevo += '<td><span style="color:#64748b; font-size:0.85rem;">' + notasTexto + '</span></td>';
+                    htmlNuevo += '</tr>';
+                }
+                cuerpoTabla.innerHTML = htmlNuevo;
+            } else { 
+                cuerpoTabla.innerHTML = '<tr><td colspan="5" style="color:red; text-align:center;">Error: ' + json.mensaje + '</td></tr>'; 
+            }
+        } catch (error) { 
+            cuerpoTabla.innerHTML = '<tr><td colspan="5" style="color:red; text-align:center;">Error de conexión.</td></tr>'; 
+        }
+    }
+
+    async function cargarSelectNFC() {
+        let tipoSeleccionado = document.getElementById('select-tipo-nfc').value;
+        let desplegable = document.getElementById('select-persona-nfc');
+        desplegable.innerHTML = '<option value="">Cargando lista...</option>';
+        
+        try {
+            let ruta = tipoSeleccionado === 'alumnos' ? '/api/alumnado' : '/api/profesorado';
+            let respuesta = await fetch(BASE_URL + ruta);
+            let json = await respuesta.json();
+            
+            if (json.status === 'success') {
+                let opcionesHtml = '<option value="">-- Selecciona una persona --</option>';
+                for (let i = 0; i < json.data.length; i++) {
+                    let persona = json.data[i];
+                    let subtitulo = tipoSeleccionado === 'alumnos' ? formatCurso(persona.curso) : formatDept(persona.departamento);
+                    let apellidos = persona.apellidos ? persona.apellidos : '';
+                    let nombreCompleto = persona.nombre + ' ' + apellidos;
+
+                    opcionesHtml += '<option value="' + persona.id + '">' + nombreCompleto + ' - ' + subtitulo + '</option>';
+                }
+                desplegable.innerHTML = opcionesHtml;
+            }
+        } catch (error) { 
+            console.error(error); 
+            desplegable.innerHTML = '<option value="">Error cargando datos</option>'; 
+        }
+    }
+
+    async function guardarVinculacion() {
+        let tipo = document.getElementById('select-tipo-nfc').value;
+        let idPersona = document.getElementById('select-persona-nfc').value;
+        let codigoNfc = document.getElementById('input-nfc-code').value;
+        let feedback = document.getElementById('nfc-feedback');
+
+        if (idPersona === '' || codigoNfc === '') {
+            feedback.innerHTML = '<span style="color:red;">Faltan datos por rellenar</span>';
+            return;
+        }
+
+        feedback.innerHTML = '<span style="color:blue;">Enviando a Odoo...</span>';
+        let datosEnviados = { id: parseInt(idPersona), nfc: codigoNfc, tipo: tipo };
+
+        try {
+            let respuesta = await fetch(BASE_URL + '/api/vincular_nfc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosEnviados)
+            });
+            let json = await respuesta.json();
+            
+            if (json.status === 'success') {
+                feedback.innerHTML = '<span style="color:green;">¡Vinculado correctamente!</span>';
+                document.getElementById('input-nfc-code').value = '';
+                document.getElementById('console-log').innerHTML += '<br>> Asignado ' + codigoNfc + ' a ID ' + idPersona + ' (' + tipo + ')';
+            } else { 
+                feedback.innerHTML = '<span style="color:red;">Error: ' + json.mensaje + '</span>'; 
+            }
+        } catch (error) { 
+            feedback.innerHTML = '<span style="color:red;">Error de conexión</span>'; 
+        }
+    }
+
+    function aplicarFiltroBusqueda(inputId, tableBodyId) {
+        document.getElementById(inputId).addEventListener('input', function(evento) {
+            let textoBuscado = evento.target.value.toLowerCase();
+            let filas = document.querySelectorAll('#' + tableBodyId + ' tr');
+            
+            for (let i = 0; i < filas.length; i++) {
+                let textoFila = filas[i].innerText.toLowerCase();
+                if (textoFila.includes(textoBuscado)) {
+                    filas[i].style.display = '';
+                } else {
+                    filas[i].style.display = 'none'; 
+                }
+            }
+        });
+    }
+
+    aplicarFiltroBusqueda('search-input', 'odoo-table-body');
+    aplicarFiltroBusqueda('search-alumnado', 'alumnado-body');
+    aplicarFiltroBusqueda('search-profesorado', 'profesorado-body');
+
+    document.getElementById('input-nfc-code').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            guardarVinculacion();
+        }
+    });
+
+    cargarDashboard();
+    setInterval(cargarDashboard, 15000);
+</script>
