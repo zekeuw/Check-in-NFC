@@ -94,8 +94,8 @@ def actualizar_estado():
     
     id_persona = datos.get('id')
     tipo = datos.get('tipo', 'alumno')
-    campo = datos.get('campo')
-    valor = datos.get('valor')
+    campo = datos.get('campo') # Puede ser 'recreo' o 'salida_anticipada'
+    valor = datos.get('valor') # True o False
     
     modelo = 'acceso_ies.estudiante' if tipo == 'alumno' else 'acceso_ies.profesor'
     
@@ -196,7 +196,6 @@ def get_alumnado_completo():
                                         {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento', 'recreo', 'salida_anticipada']})
         return jsonify({"status": "success", "data": estudiantes})
     except Exception as e:
-        # Fallback si no existen los campos de recreo en Odoo
         estudiantes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento']})
         return jsonify({"status": "success", "data": estudiantes})
 
@@ -217,7 +216,6 @@ def vincular_nfc():
     datos = request.get_json()
     tipo = datos.get('tipo', 'alumnos')
     
-    # Diferenciamos el modelo según la selección del select web
     modelo = 'acceso_ies.profesor' if tipo == 'profesores' else 'acceso_ies.estudiante'
     
     try:
@@ -273,12 +271,18 @@ def Asistencia_estudiante():
         estudiantes = models.execute_kw(DB, uid, PASSWORD,
                                  'acceso_ies.estudiante', 'search_read',
                                  [[['id_NFC', '=', nfc_id]]],
-                                 {'fields': ['id', 'nombre'], 'limit': 1})
+                                 {'fields': ['id', 'nombre', 'salida_anticipada'], 'limit': 1})
         
         if not estudiantes:
             return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
 
         estudiante_encontrado = estudiantes[0]
+        print(estudiante_encontrado)
+        if estudiante_encontrado["salida_anticipada"] == False:
+            return jsonify({
+                'status': 'error',
+                'mensaje': 'El usuario no tiene permitido salir antes de tiempo'
+            })
         
         datos_para_odoo = {
             "estado_asistencia": estado_asistencia,
@@ -294,7 +298,25 @@ def Asistencia_estudiante():
         }), 201
 
     except Exception as e:
-        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+        return jsonify({'status': 'error', 'mensaje': "Usuario no encontrado"}), 500
+
+@app.route('/GetProfesor', methods=['GET'])
+def get_profesor():
+    if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
+    datos = request.get_json()
+    try:
+        resultado = models.execute_kw(DB, uid, PASSWORD,
+                             'acceso_ies.profesor', 'search_read',
+                             [[['id_NFC', '=', datos["nfc"]]]],
+                             {'fields': ['nombre', 'apellidos'], 'limit':1})
+        return jsonify({
+            'status': 'exito',
+            'resultado_calculado': resultado,
+            'mensaje': 'Búsqueda correcta'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': str(e)})
+
     
 @app.route('/api/asistencia', methods=['GET'])
 def get_asistencia():
