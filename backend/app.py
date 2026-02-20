@@ -216,19 +216,60 @@ def get_profesorado():
 
 @app.route('/api/vincular_nfc', methods=['POST'])
 def vincular_nfc():
-    if not uid: return jsonify({'status': 'error'}), 500
-    datos = request.get_json()
-    tipo = datos.get('tipo', 'alumnos')
-    
-    modelo = 'acceso_ies.profesor' if tipo == 'profesores' else 'acceso_ies.estudiante'
-    
-    try:
-        models.execute_kw(DB, uid, PASSWORD, modelo, 'write', 
-                          [[int(datos['id'])], {'id_NFC': datos.get('nfc')}])
-        return jsonify({'status': 'success', 'mensaje': 'Vinculado correctamente'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'mensaje': str(e)})
+    if not uid: 
+        return jsonify({'status': 'error', 'mensaje': 'No hay sesión de Odoo activa'}), 401
 
+    datos = request.get_json()
+    
+    if not datos:
+        return jsonify({'status': 'error', 'mensaje': 'No se enviaron datos JSON'}), 400
+
+    registro_id = datos.get('id')
+    nfc = datos.get('nfc')
+    tipo = datos.get('tipo', 'alumnos')
+
+    if not registro_id or not str(nfc).strip():
+        return jsonify({'status': 'error', 'mensaje': 'Los campos "id" y "nfc" son obligatorios'}), 400
+
+    try:
+        registro_id = int(registro_id)
+    except ValueError:
+        return jsonify({'status': 'error', 'mensaje': 'El campo "id" debe ser un número entero válido'}), 400
+
+    if tipo not in ['alumnos', 'profesores']:
+        return jsonify({'status': 'error', 'mensaje': 'El "tipo" debe ser "alumnos" o "profesores"'}), 400
+
+    modelo_actual = 'acceso_ies.profesor' if tipo == 'profesores' else 'acceso_ies.estudiante'
+    modelo_contrario = 'acceso_ies.estudiante' if tipo == 'profesores' else 'acceso_ies.profesor'
+    nombre_contrario = 'alumno' if tipo == 'profesores' else 'profesor'
+
+    try:
+        nfc_en_actual = models.execute_kw(DB, uid, PASSWORD, modelo_actual, 'search', 
+                                          [[('id_NFC', '=', nfc)]])
+        
+        if nfc_en_actual:
+            if registro_id in nfc_en_actual:
+                return jsonify({'status': 'success', 'mensaje': 'Esta tarjeta ya estaba vinculada a este usuario'}), 200
+            else:
+                return jsonify({'status': 'error', 'mensaje': f'El NFC ya está asignado a otro {tipo[:-1]}'}), 409
+
+        nfc_en_contrario = models.execute_kw(DB, uid, PASSWORD, modelo_contrario, 'search', 
+                                             [[('id_NFC', '=', nfc)]])
+        
+        if nfc_en_contrario:
+            return jsonify({'status': 'error', 'mensaje': f'El NFC ya está asignado a un {nombre_contrario}'}), 409
+
+        resultado = models.execute_kw(DB, uid, PASSWORD, modelo_actual, 'write', 
+                                      [[registro_id], {'id_NFC': nfc}])
+        
+        if resultado:
+            return jsonify({'status': 'success', 'mensaje': 'Vinculado correctamente'}), 200
+        else:
+            return jsonify({'status': 'error', 'mensaje': 'No se encontró el registro o no se pudo actualizar'}), 404
+            
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': f'Error al comunicar con Odoo: {str(e)}'}), 500
+    
 @app.route("/AsistenciaProfesor", methods=['POST'])
 def Asistencia_profesor():
     try:
@@ -308,25 +349,27 @@ def Asistencia_estudiante():
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': "Usuario no encontrado"}), 500
 
-@app.route('/GetProfesor', methods=['GET'])
+@app.route('/GetProfesor', methods=['POST'])
 def get_profesor():
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     try:
+        print(datos)
         resultado = models.execute_kw(DB, uid, PASSWORD,
                              'acceso_ies.profesor', 'search_read',
                              [[['id_NFC', '=', datos["nfc"]]]],
                              {'fields': ['nombre', 'apellidos'], 'limit':1})
+        
         if not resultado:
-           return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
+           return jsonify({'status': 'error', 'data': 'Tarjeta NFC no registrada en el sistema.'}), 404
         
         return jsonify({
             'status': 'success',
-            'resultado_calculado': resultado,
+            'data': resultado,
             'mensaje': 'Búsqueda correcta'
         })
     except Exception as e:
-        return jsonify({'status': 'error', 'mensaje': str(e)})
+        return jsonify({'status': 'error', 'data': str(e)})
 
     
 @app.route('/api/asistencia', methods=['GET'])
