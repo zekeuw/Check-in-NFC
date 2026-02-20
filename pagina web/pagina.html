@@ -446,11 +446,10 @@
             document.getElementById('stat-incidencias').innerText = datos.stats?.incidencias || '--';
             document.getElementById('current-date').innerText = datos.stats?.fecha || '--';
 
-            // --- LÓGICA DEL GRÁFICO ---
             let respuestaAsis = await fetch(BASE_URL + '/api/asistencia?filtro=' + tipoSeleccionado);
             let jsonAsistencia = await respuestaAsis.json();
 
-            let conteoSemana = [0, 0, 0, 0, 0]; // L, M, X, J, V
+            let conteoSemana = [0, 0, 0, 0, 0];
             let etiquetasDias = ['L', 'M', 'X', 'J', 'V'];
 
             if (jsonAsistencia.status === 'success') {
