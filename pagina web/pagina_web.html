@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión IES San Juan de la Rambla</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="app-layout">
+        
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    IES SJR
+                </div>
+                <button class="close-btn" onclick="toggleMenu()">&times;</button>
+            </div>
+
+            <div class="nav-links" id="nav-links">
+                <button class="nav-btn active" onclick="cambiarSeccion('estadisticas', this)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-4"/></svg>
+                    Estadísticas
+                </button>
+                <button class="nav-btn" onclick="cambiarSeccion('alumnado', this)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Alumnado
+                </button>
+                <button class="nav-btn" onclick="cambiarSeccion('profesorado', this)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    Profesorado
+                </button>
+                <button class="nav-btn" onclick="cambiarSeccion('asistencia', this)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Asistencia
+                </button>
+                <button class="nav-btn" onclick="cambiarSeccion('nfc', this)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    Vinculación NFC
+                </button>
+            </div>
+        </aside>
+
+        <div class="main-content">
+            
+            <header class="top-bar">
+                <div class="mobile-header-left">
+                    <button class="hamburger-btn" onclick="toggleMenu()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <span class="mobile-title hidden-desktop">IES San Juan de la Rambla</span>
+                </div>
+                
+                <div class="user-profile">
+                    <div class="user-info-text hidden-mobile">
+                        <span class="admin-title">Jefatura de Estudios</span>
+                        <span class="admin-subtitle">
+                            <span id="sync-status" class="status-dot"></span> Conectado a Odoo
+                        </span>
+                    </div>
+                    <img src="https://ui-avatars.com/api/?name=Jefatura+Estudios&background=1e40af&color=fff&size=128" alt="Perfil" class="admin-avatar">
+                </div>
+            </header>
+
+            <main class="dashboard-wrapper">
+                
+                <div class="page-header">
+                    <h2>Panel de Control - Jefatura de Estudios</h2>
+                    <p>Resumen general de asistencia, salidas y control NFC del alumnado.</p>
+                </div>
+
+                <div id="sec-estadisticas" class="seccion-app active">
+                    <div class="grid-stats" style="margin-bottom: 25px;">
+                        <div class="stat-widget">
+                            <div class="widget-data">
+                                <span class="w-label">Salidas Hoy</span>
+                                <span class="w-value" id="stat-total-salidas">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-widget">
+                            <div class="widget-data">
+                                <span class="w-label">Incidencias</span>
+                                <span class="w-value" id="stat-incidencias" style="color: var(--danger)">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-widget">
+                            <div class="widget-data">
+                                <span class="w-label">Sincronización</span>
+                                <span class="w-value" id="stat-sync-percent">OK</span>
+                            </div>
+                        </div>
+                        <div class="stat-widget">
+                            <div class="widget-data">
+                                <span class="w-label">Fecha</span>
+                                <span class="w-value" id="current-date">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <section class="panel chart-panel" style="margin-bottom: 25px;">
+                        <div class="panel-header">
+                            <h3>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #475569;">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                    <polyline points="16 17 21 12 16 7"></polyline>
+                                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                                </svg>
+                                Salidas Anticipadas (Semana actual)
+                            </h3>
+                        </div>
+                        <div class="chart-container" style="position: relative; height: 250px; width: 100%;">
+                            <canvas id="odoo-chart"></canvas>
+                        </div>
+                        <div class="chart-footer">
+                            <p style="margin-top: 10px; color: #94a3b8; font-size: 0.85rem;">Actualizado en tiempo real</p>
+                        </div>
+                    </section>
+
+                    <section class="panel table-panel">
+                        <div class="panel-header">
+                            <h3>Control de Presencia (Hoy)</h3>
+                            <div class="header-tools" style="display: flex; gap: 10px;">
+                                <select id="filtro-dashboard-tipo" class="form-select" onchange="cargarDashboard()"
+                                    style="padding: 6px; width: auto;">
+                                    <option value="alumnos">Alumnos</option>
+                                    <option value="profesores">Profesores</option>
+                                </select>
+                                <input type="text" id="search-input" placeholder="Buscar persona..." class="search-mini">
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Persona / Grupo</th>
+                                        <th>NFC ID</th>
+                                        <th style="text-align: center;">Recreo</th>
+                                        <th style="text-align: center;">Salida</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="odoo-table-body">
+                                    <tr>
+                                        <td colspan="4" style="text-align:center; padding: 20px;">Conectando con Odoo...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+                <div id="sec-alumnado" class="seccion-app" style="display: none;">
+                    <div class="grid-main">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Directorio de Alumnos</h3>
+                                <div class="header-tools" style="display: flex; gap: 10px;">
+                                    <input type="text" id="search-alumnado" placeholder="Buscar alumno..." class="search-mini">
+                                    <button class="btn-action" onclick="cargarAlumnado()">Actualizar</button>
+                                </div>
+                            </div>
+                            <div class="table-container">
+                                <table class="modern-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 50px;">Foto</th>
+                                            <th>Nombre</th>
+                                            <th>Curso</th>
+                                            <th>DNI</th>
+                                            <th>NFC</th>
+                                            <th style="text-align: center;">Recreo</th>
+                                            <th style="text-align: center;">Salida</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="alumnado-body">
+                                        <tr>
+                                            <td colspan="7" style="text-align:center;">Cargando datos...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Registrar Nuevo Alumno</h3>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Nombre</label>
+                                <input type="text" id="add-al-nombre" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Apellidos</label>
+                                <input type="text" id="add-al-apellidos" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Curso / Grupo</label>
+                                <select id="add-al-curso" class="form-select">
+                                    <option value="" disabled selected>-- Selecciona Curso --</option>
+                                    <optgroup label="Secundaria">
+                                        <option value="1eso">1º ESO</option>
+                                        <option value="2eso">2º ESO</option>
+                                        <option value="3eso">3º ESO</option>
+                                        <option value="4eso">4º ESO</option>
+                                    </optgroup>
+                                    <optgroup label="Bachillerato">
+                                        <option value="1bach">1º Bachillerato</option>
+                                        <option value="2bach">2º Bachillerato</option>
+                                    </optgroup>
+                                    <optgroup label="Informática (FP)">
+                                        <option value="1smr">1º SMR (Medio)</option>
+                                        <option value="2smr">2º SMR (Medio)</option>
+                                        <option value="1dam">1º DAM (Superior)</option>
+                                        <option value="2dam">2º DAM (Superior)</option>
+                                    </optgroup>
+                                    <optgroup label="Agraria / Forestales (FP)">
+                                        <option value="1for">1º Forestales (Medio)</option>
+                                        <option value="2for">2º Forestales (Medio)</option>
+                                        <option value="1gsfor">1º Gestión Forestal (Superior)</option>
+                                        <option value="2gsfor">2º Gestión Forestal (Superior)</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">DNI / Documento</label>
+                                <input type="text" id="add-al-dni" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Fecha de Nacimiento</label>
+                                <input type="date" id="add-al-fecha" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Código NFC (Opcional)</label>
+                                <input type="text" id="add-al-nfc" class="form-input" placeholder="Escanea o deja vacío">
+                            </div>
+                            <button class="btn-action btn-large" style="width:100%;" onclick="crearAlumnoDesdeWeb()">REGISTRAR
+                                EN ODOO</button>
+                            <div id="add-al-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sec-profesorado" class="seccion-app" style="display: none;">
+                    <div class="grid-main">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Directorio de Profesores</h3>
+                                <div class="header-tools" style="display: flex; gap: 10px;">
+                                    <input type="text" id="search-profesorado" placeholder="Buscar profesor..."
+                                        class="search-mini">
+                                    <button class="btn-action" onclick="cargarProfesorado()">Actualizar</button>
+                                </div>
+                            </div>
+                            <div class="table-container">
+                                <table class="modern-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nombre</th>
+                                            <th>Departamento</th>
+                                            <th>DNI</th>
+                                            <th>NFC</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="profesorado-body">
+                                        <tr>
+                                            <td colspan="4" style="text-align:center;">Cargando datos...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Registrar Nuevo Profesor</h3>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Nombre</label>
+                                <input type="text" id="add-pr-nombre" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Apellidos</label>
+                                <input type="text" id="add-pr-apellidos" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Departamento</label>
+                                <select id="add-pr-departamento" class="form-select">
+                                    <option value="" disabled selected>-- Selecciona Departamento --</option>
+                                    <option value="informatica">Informática</option>
+                                    <option value="agraria">Agraria</option>
+                                    <option value="matematicas">Matemáticas</option>
+                                    <option value="lengua">Lengua Castellana</option>
+                                    <option value="ingles">Inglés</option>
+                                    <option value="biologia_geologia">Biología y Geología</option>
+                                    <option value="fisica_quimica">Física y Química</option>
+                                    <option value="educacion_fisica">Educación Física</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">DNI / Documento</label>
+                                <input type="text" id="add-pr-dni" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Código NFC (Opcional)</label>
+                                <input type="text" id="add-pr-nfc" class="form-input" placeholder="Escanea o deja vacío">
+                            </div>
+                            <button class="btn-action btn-large" style="width:100%;" onclick="crearProfesorDesdeWeb()">REGISTRAR
+                                EN ODOO</button>
+                            <div id="add-pr-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sec-asistencia" class="seccion-app" style="display: none;">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Registro de Incidencias de Asistencia</h3>
+                            <div class="header-tools" style="display: flex; gap: 10px;">
+                                <input type="date" id="filtro-fecha-asistencia" class="fecha-input" onchange="cargarAsistencia()">
+                                <select id="filtro-asistencia" class="form-select" style="padding: 6px 12px; width: auto;"
+                                    onchange="cargarAsistencia()">
+                                    <option value="todos">Todos</option>
+                                    <option value="alumnos">Solo Alumnos</option>
+                                    <option value="profesores">Solo Profesores</option>
+                                </select>
+                                <button class="btn-action" onclick="cargarAsistencia()">Actualizar</button>
+                                <button class="btn-action" style="background-color: #10b981;" onclick="exportarCSV('asistencia-body')">📥 Exportar CSV</button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">Foto</th>
+                                        <th>Nombre</th>
+                                        <th>Colectivo</th>
+                                        <th>Tipo de Incidencia</th>
+                                        <th>Hora / Fecha</th>
+                                        <th>Notas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="asistencia-body">
+                                    <tr>
+                                        <td colspan="6" style="text-align:center;">Cargando registros...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sec-nfc" class="seccion-app" style="display: none;">
+                    <div class="grid-main">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Asignar Nueva Tarjeta</h3>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">1. Colectivo</label>
+                                <select id="select-tipo-nfc" class="form-select" onchange="cargarSelectNFC()">
+                                    <option value="alumnos">Alumnos</option>
+                                    <option value="profesores">Profesores</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">2. Seleccionar Persona</label>
+                                <select id="select-persona-nfc" class="form-select">
+                                    <option value="">Cargando lista...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">3. Código NFC</label>
+                                <input type="text" id="input-nfc-code" class="form-input"
+                                    placeholder="Escanea la tarjeta o pulsa Enter...">
+                            </div>
+                            <button class="btn-action btn-large" onclick="guardarVinculacion()">GUARDAR VINCULACIÓN</button>
+                            <div id="nfc-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
+                        </div>
+                        <div class="panel">
+                            <h3>Instrucciones</h3>
+                            <ol style="line-height: 1.8; color: #475569; padding-left: 20px;">
+                                <li>Selecciona si es Alumno o Profesor.</li>
+                                <li>Busca a la persona en el listado.</li>
+                                <li>Haz clic en la casilla de "Código NFC".</li>
+                                <li>Pasa la tarjeta por el lector (se guardará automáticamente).</li>
+                            </ol>
+                            <div class="scan-area" id="console-log" style="display:block;">
+                                > Sistema NFC listo.<br>
+                                > Conectado a módulo: acceso_ies
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <footer class="dashboard-footer">
+                <div>&copy; 2026 IES San Juan de la Rambla - Proyecto de Desarrollo.</div>
+                <div>Versión del Sistema: 1.0.2 | Módulo Odoo Conectado</div>
+            </footer>
+
+        </div>
+    </div>
+</body>
+
+</html>
