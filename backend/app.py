@@ -25,7 +25,6 @@ app = Flask(__name__)
 CORS(app)
 
 def limpiar_datos(datos):
-    """Convierte strings vacíos en None para evitar errores en Odoo."""
     for clave, valor in datos.items():
         if valor == "":
             datos[clave] = None
@@ -33,7 +32,6 @@ def limpiar_datos(datos):
 
 @app.route('/procesar-datos', methods=['POST'])
 def ejecutar_funcion():
-    """Busca estudiante por NFC (Lógica original)."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     try:
@@ -51,7 +49,6 @@ def ejecutar_funcion():
 
 @app.route('/create', methods=['POST'])
 def crear_registro():
-    """Crea un alumno o profesor dependiendo del tipo enviado desde la web."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     
     datos = request.get_json()
@@ -88,14 +85,13 @@ def crear_registro():
 
 @app.route('/api/actualizar_estado', methods=['POST'])
 def actualizar_estado():
-    """Ruta unificada para actualizar salida anticipada y recreo desde los botones."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     
     id_persona = datos.get('id')
     tipo = datos.get('tipo', 'alumno')
-    campo = datos.get('campo') # Puede ser 'recreo' o 'salida_anticipada'
-    valor = datos.get('valor') # True o False
+    campo = datos.get('campo')
+    valor = datos.get('valor')
     
     modelo = 'acceso_ies.estudiante' if tipo == 'alumno' else 'acceso_ies.profesor'
     
@@ -108,7 +104,6 @@ def actualizar_estado():
 
 @app.route('/Salida_Recreo', methods=['POST'])
 def salida_recreo():
-    """Lógica de validación por edad."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     try:
@@ -131,7 +126,6 @@ def salida_recreo():
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard_data():
-    """Obtiene los datos del dashboard filtrando por alumnos o profesores."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     
     tipo = request.args.get('tipo', 'alumnos')
@@ -139,16 +133,16 @@ def get_dashboard_data():
     try:
         if tipo == 'profesores':
             modelo = 'acceso_ies.profesor'
+            modelo_asistencia = 'acceso_ies.asistencia_profesor'
             campos = ['id', 'nombre', 'apellidos', 'departamento', 'id_NFC', 'recreo', 'salida_anticipada']
         else:
             modelo = 'acceso_ies.estudiante'
+            modelo_asistencia = 'acceso_ies.asistencia_estudiante'
             campos = ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'recreo', 'salida_anticipada']
 
-        # Omitimos errores si los profesores no tienen los campos recreo/salida_anticipada configurados aún
         try:
             personas = models.execute_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos})
         except Exception:
-            # Fallback en caso de que el modelo profesor no tenga recreo/salida
             campos_basicos = ['id', 'nombre', 'apellidos', 'departamento', 'id_NFC'] if tipo == 'profesores' else ['id', 'nombre', 'apellidos', 'curso', 'id_NFC']
             personas = models.execute_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos_basicos})
 
@@ -169,6 +163,33 @@ def get_dashboard_data():
                 "salida_anticipada": p.get('salida_anticipada', False)
             })
 
+        hoy = datetime.now()
+        inicio_semana = hoy - timedelta(days=hoy.weekday())
+        inicio_semana = inicio_semana.replace(hour=0, minute=0, second=0, microsecond=0)
+        inicio_semana_str = inicio_semana.strftime('%Y-%m-%d %H:%M:%S')
+
+        conteo_semana = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+        etiquetas_dias = {0: "L", 1: "M", 2: "X", 3: "J", 4: "V"}
+        
+        try:
+            asistencias_semana = models.execute_kw(DB, uid, PASSWORD, modelo_asistencia, 'search_read',
+                [[('create_date', '>=', inicio_semana_str)]],
+                {'fields': ['create_date']}
+            )
+            for asis in asistencias_semana:
+                fecha_str = asis.get('create_date')
+                if fecha_str:
+                    fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d %H:%M:%S')
+                    dia_semana = fecha_dt.weekday()
+                    if dia_semana in conteo_semana:
+                        conteo_semana[dia_semana] += 1
+        except Exception as e:
+            print(f"Aviso: No se pudo obtener la estadística semanal: {e}")
+
+        datos_semana_grafico = [
+            {"label": etiquetas_dias[i], "total": conteo_semana[i]} for i in range(5)
+        ]
+
         return jsonify({
             "data": data_personas,
             "stats": {
@@ -177,14 +198,7 @@ def get_dashboard_data():
                 "sync": 100, 
                 "fecha": datetime.now().strftime("%d %b")
             },
-            # Datos simulados para Chart.js (Puedes cambiar esto para que haga un count real en la base de datos)
-            "semana": [
-                {"label": "L", "total": 12}, 
-                {"label": "M", "total": 8}, 
-                {"label": "X", "total": 15}, 
-                {"label": "J", "total": 20}, 
-                {"label": "V", "total": total_salidas_hoy} 
-            ]
+            "semana": datos_semana_grafico
         })
     except Exception as e:
         print(f"Error cargando dashboard: {e}")
@@ -199,7 +213,6 @@ def get_alumnado_completo():
                                         {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento', 'recreo', 'salida_anticipada']})
         return jsonify({"status": "success", "data": estudiantes})
     except Exception as e:
-        # Fallback si no existen los campos de recreo en Odoo
         estudiantes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento']})
         return jsonify({"status": "success", "data": estudiantes})
 
@@ -307,7 +320,6 @@ def Asistencia_profesor():
                 'registro_id': nuevo_registro_id
             }), 201
             
-
     except Exception as e:
         print(e)
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
@@ -371,13 +383,21 @@ def get_profesor():
     except Exception as e:
         return jsonify({'status': 'error', 'data': str(e)})
 
-    
 @app.route('/api/asistencia', methods=['GET'])
 def get_asistencia():
     if not uid: 
         return jsonify({'status': 'error', 'mensaje': 'Sin conexión a Odoo'}), 500
     
     filtro = request.args.get('filtro', 'todos')
+    
+    fecha = request.args.get('fecha')
+    search_domain = []
+    
+    if fecha:
+        inicio_dia = f"{fecha} 00:00:00"
+        fin_dia = f"{fecha} 23:59:59"
+        search_domain = [('create_date', '>=', inicio_dia), ('create_date', '<=', fin_dia)]
+    
     data_formateada = []
     
     try:
@@ -386,11 +406,11 @@ def get_asistencia():
                 DB, uid, PASSWORD, 
                 'acceso_ies.asistencia_estudiante', 
                 'search_read', 
-                [[]], 
+                [search_domain],
                 {
                     'fields': ['estudiante_id', 'estado_asistencia', 'create_date'], 
                     'order': 'create_date desc', 
-                    'limit': 50 
+                    'limit': 200 if fecha else 50 
                 }
             )
             
@@ -428,11 +448,11 @@ def get_asistencia():
                     DB, uid, PASSWORD, 
                     'acceso_ies.asistencia_profesor', 
                     'search_read', 
-                    [[]], 
+                    [search_domain],
                     {
                         'fields': ['profesor_id', 'estado_asistencia', 'create_date'], 
                         'order': 'create_date desc', 
-                        'limit': 50 
+                        'limit': 200 if fecha else 50 
                     }
                 )
                 
