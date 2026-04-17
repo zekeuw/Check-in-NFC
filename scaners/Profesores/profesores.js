@@ -1,81 +1,82 @@
-var urlApi = "http://localhost:5000/AsistenciaProfesor";
+const API_URL = 'http://localhost:5000/AsistenciaProfesor';
 
-var operacionActiva = "";
-var escuchandoTeclado = false;
-var textoLeido = ""; 
-var timerReinicio;
+let operacionActual = '';
+let esperandoNFC = false;
+let bufferTeclado = '';
+let timeoutReinicio;
 
-var pantalla = document.getElementById('pantalla-nfc');
+const pantalla = document.getElementById('pantalla-status');
 
-function prepararFichaje(accion) {
-    clearTimeout(timerReinicio);
-    
-    operacionActiva = accion;
-    escuchandoTeclado = true;
-    textoLeido = "";
-    
-    var mensaje = accion === 'llego al centro' ? 'ENTRADA' : 'SALIDA';
+const reiniciarConsola = () => {
+  esperandoNFC = false;
+  bufferTeclado = '';
+  pantalla.style.color = 'var(--console-text)';
+  pantalla.style.borderLeftColor = 'var(--console-text)';
+  pantalla.innerHTML = '> Sistema listo para operar.<br>> Paso 1: Selecciona Entrada o Salida.<br>> Paso 2: Escanea tu tarjeta NFC.';
+};
 
-    pantalla.style.color = "#38bdf8";
-    pantalla.innerHTML = "> OPERACIÓN: <strong>" + mensaje + "</strong><br>> Acerque su tarjeta al lector NFC ahora...";
-    
-    timerReinicio = setTimeout(limpiarPantalla, 10000);
-}
+const enviarFichaje = async (nfcId) => {
+  esperandoNFC = false;
+  clearTimeout(timeoutReinicio);
 
-document.addEventListener('keydown', function(evento) {
-    if (escuchandoTeclado === false) return;
+  pantalla.innerHTML = `> Validando tarjeta [${nfcId}] en Odoo...`;
+  pantalla.style.color = '#ffffff';
 
-    if (evento.key === 'Enter') {
-        evento.preventDefault();
-        if (textoLeido.trim() !== "") {
-            enviarDatosOdoo(textoLeido.trim());
-            textoLeido = "";
-        }
-    } else if (evento.key.length === 1) {
-        textoLeido += evento.key;
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_NFC: nfcId,
+        estado_asistencia: operacionActual,
+      }),
+    });
+
+    const res = await response.json();
+
+    if (response.ok && (res.status === 'success' || res.status === 'exito')) {
+      pantalla.style.borderLeftColor = 'var(--success)';
+      pantalla.style.color = 'var(--success)';
+      pantalla.innerHTML = `> ¡ACCESO CORRECTO!<br>> <strong style="color: white; font-size: 1.1rem; display: block; margin-top: 5px;">${res.mensaje}</strong>`;
+    } else {
+      pantalla.style.borderLeftColor = 'var(--danger)';
+      pantalla.style.color = '#fb7185';
+      pantalla.innerHTML = `> ACCESO DENEGADO<br>> ${res.mensaje || 'La tarjeta no existe en la base de datos'}`;
     }
+  } catch (err) {
+    pantalla.style.borderLeftColor = 'var(--danger)';
+    pantalla.style.color = '#fb7185';
+    pantalla.innerHTML = '> ERROR DE RED: No se pudo conectar con el servidor Flask.';
+  }
+
+  timeoutReinicio = setTimeout(reiniciarConsola, 4000);
+};
+
+window.seleccionarOperacion = (tipo) => {
+  clearTimeout(timeoutReinicio);
+
+  operacionActual = tipo;
+  esperandoNFC = true;
+  bufferTeclado = '';
+
+  const textoVisible = tipo === 'llego al centro' ? 'ENTRADA' : 'SALIDA';
+
+  pantalla.style.borderLeftColor = 'var(--warning)';
+  pantalla.innerHTML = `> OPERACIÓN: <strong style="color:white;">${textoVisible}</strong><br>> <span style="color:var(--warning);">ACERCA TU TARJETA AL LECTOR AHORA...</span>`;
+
+  timeoutReinicio = setTimeout(reiniciarConsola, 15000);
+};
+
+document.addEventListener('keydown', (e) => {
+  if (!esperandoNFC) return;
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (bufferTeclado.trim() !== '') {
+      enviarFichaje(bufferTeclado.trim());
+      bufferTeclado = '';
+    }
+  } else if (e.key.length === 1) {
+    bufferTeclado += e.key;
+  }
 });
-
-async function enviarDatosOdoo(codigoTarjeta) {
-    escuchandoTeclado = false;
-    clearTimeout(timerReinicio);
-    
-    pantalla.innerHTML = "> Validando tarjeta: " + codigoTarjeta + "...";
-    pantalla.style.color = "#ffffff";
-
-    var datosParaEnviar = {
-        id_NFC: codigoTarjeta,
-        estado_asistencia: operacionActiva
-    };
-
-    try {
-        var peticion = await fetch(urlApi, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datosParaEnviar)
-        });
-        
-        var respuesta = await peticion.json();
-
-        if (peticion.ok && (respuesta.status === 'success' || respuesta.status === 'exito')) {
-            pantalla.style.color = "#10b981";
-            pantalla.innerHTML = "> ¡CORRECTO!<br>> " + respuesta.mensaje;
-        } else {
-            pantalla.style.color = "#f87171";
-            pantalla.innerHTML = "> ERROR:<br>> " + (respuesta.mensaje || "La tarjeta no existe");
-        }
-    } catch (error) {
-        pantalla.style.color = "#f87171";
-        pantalla.innerHTML = "> ERROR DE RED:<br>> No se pudo contactar con el servidor Flask.";
-    }
-
-    timerReinicio = setTimeout(limpiarPantalla, 3000);
-}
-
-function limpiarPantalla() {
-    escuchandoTeclado = false;
-    operacionActiva = "";
-    textoLeido = "";
-    pantalla.style.color = "#38bdf8";
-    pantalla.innerHTML = "> Sistema listo.<br>> Esperando selección de operación...";
-}
