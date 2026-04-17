@@ -8,24 +8,30 @@ DB = 'Servidor_proyecto'
 USERNAME = 'admin'
 PASSWORD = 'admin'
 
-try:
-    common = xmlrpc.client.ServerProxy(f'{URL}/xmlrpc/2/common')
-    uid = common.authenticate(DB, USERNAME, PASSWORD, {})
-    models = xmlrpc.client.ServerProxy(f'{URL}/xmlrpc/2/object', allow_none=True)
-    
-    if uid:
-        print(f"Conexión exitosa con Odoo. UID: {uid}")
-    else:
-        print("Error de autenticación con Odoo.")
-except Exception as e:
-    print(f"Error de conexión inicial: {e}")
-    uid = None
-
 app = Flask(__name__)
 CORS(app)
 
+uid = None
+models = None
+
+@app.before_request
+def asegurar_conexion_odoo():
+    global uid, models
+    
+    if uid:
+        return
+        
+    try:
+        common = xmlrpc.client.ServerProxy(f'{URL}/xmlrpc/2/common')
+        nuevo_uid = common.authenticate(DB, USERNAME, PASSWORD, {})
+        if nuevo_uid:
+            uid = nuevo_uid
+            models = xmlrpc.client.ServerProxy(f'{URL}/xmlrpc/2/object', allow_none=True)
+            print(f"¡Conexión/Reconexión exitosa con Odoo! UID: {uid}")
+    except Exception:
+        pass
+
 def limpiar_datos(datos):
-    """Convierte strings vacíos en None para evitar errores en Odoo."""
     for clave, valor in datos.items():
         if valor == "":
             datos[clave] = None
@@ -33,7 +39,6 @@ def limpiar_datos(datos):
 
 @app.route('/procesar-datos', methods=['POST'])
 def ejecutar_funcion():
-    """Busca estudiante por NFC (Lógica original)."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     try:
@@ -51,7 +56,6 @@ def ejecutar_funcion():
 
 @app.route('/create', methods=['POST'])
 def crear_registro():
-    """Crea un alumno o profesor dependiendo del tipo enviado desde la web."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     
     datos = request.get_json()
@@ -88,14 +92,13 @@ def crear_registro():
 
 @app.route('/api/actualizar_estado', methods=['POST'])
 def actualizar_estado():
-    """Ruta unificada para actualizar salida anticipada y recreo desde los botones."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     
     id_persona = datos.get('id')
     tipo = datos.get('tipo', 'alumno')
-    campo = datos.get('campo') # Puede ser 'recreo' o 'salida_anticipada'
-    valor = datos.get('valor') # True o False
+    campo = datos.get('campo')
+    valor = datos.get('valor')
     
     modelo = 'acceso_ies.estudiante' if tipo == 'alumno' else 'acceso_ies.profesor'
     
@@ -108,21 +111,26 @@ def actualizar_estado():
 
 @app.route('/Salida_Recreo', methods=['POST'])
 def salida_recreo():
-    """Lógica de validación por edad."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     try:
         user = models.execute_kw(DB, uid, PASSWORD,
                                  'acceso_ies.estudiante', 'search_read',
                                  [[['id_NFC', '=', datos["nfc"]]]],
-                                 {'fields': ['nombre','apellidos', 'recreo', 'fecha_nacimiento', 'curso'], 'limit':1})
+                                 {'fields': ['id', 'nombre','apellidos', 'recreo', 'fecha_nacimiento', 'curso'], 'limit':1})
         
         if user and user[0].get("fecha_nacimiento"):
             fecha = datetime.strptime(user[0]['fecha_nacimiento'], '%Y-%m-%d')
-            if datetime.now() - fecha < timedelta(days=365*18):
-                user[0]['recreo'] = False
-            else:
-                user[0]['recreo'] = True
+            hoy = datetime.now()
+            
+            edad = hoy.year - fecha.year - ((hoy.month, hoy.day) < (fecha.month, fecha.day))
+            
+            nuevo_estado = True if edad >= 18 else False
+            
+            models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'write', 
+                              [[user[0]['id']], {'recreo': nuevo_estado}])
+            
+            user[0]['recreo'] = nuevo_estado
             return jsonify({"status": "success", "data": user})
         
         return jsonify({"status": "error", "data": "Usuario no encontrado o sin fecha"})
@@ -131,7 +139,6 @@ def salida_recreo():
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard_data():
-    """Obtiene los datos del dashboard filtrando por alumnos o profesores."""
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     
     tipo = request.args.get('tipo', 'alumnos')
@@ -139,16 +146,16 @@ def get_dashboard_data():
     try:
         if tipo == 'profesores':
             modelo = 'acceso_ies.profesor'
+            modelo_asistencia = 'acceso_ies.asistencia_profesor'
             campos = ['id', 'nombre', 'apellidos', 'departamento', 'id_NFC', 'recreo', 'salida_anticipada']
         else:
             modelo = 'acceso_ies.estudiante'
+            modelo_asistencia = 'acceso_ies.asistencia_estudiante'
             campos = ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'recreo', 'salida_anticipada']
 
-        # Omitimos errores si los profesores no tienen los campos recreo/salida_anticipada configurados aún
         try:
             personas = models.execute_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos})
         except Exception:
-            # Fallback en caso de que el modelo profesor no tenga recreo/salida
             campos_basicos = ['id', 'nombre', 'apellidos', 'departamento', 'id_NFC'] if tipo == 'profesores' else ['id', 'nombre', 'apellidos', 'curso', 'id_NFC']
             personas = models.execute_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos_basicos})
 
@@ -169,6 +176,33 @@ def get_dashboard_data():
                 "salida_anticipada": p.get('salida_anticipada', False)
             })
 
+        hoy = datetime.now()
+        inicio_semana = hoy - timedelta(days=hoy.weekday())
+        inicio_semana = inicio_semana.replace(hour=0, minute=0, second=0, microsecond=0)
+        inicio_semana_str = inicio_semana.strftime('%Y-%m-%d %H:%M:%S')
+
+        conteo_semana = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+        etiquetas_dias = {0: "L", 1: "M", 2: "X", 3: "J", 4: "V"}
+        
+        try:
+            asistencias_semana = models.execute_kw(DB, uid, PASSWORD, modelo_asistencia, 'search_read',
+                [[('create_date', '>=', inicio_semana_str)]],
+                {'fields': ['create_date']}
+            )
+            for asis in asistencias_semana:
+                fecha_str = asis.get('create_date')
+                if fecha_str:
+                    fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d %H:%M:%S')
+                    dia_semana = fecha_dt.weekday()
+                    if dia_semana in conteo_semana:
+                        conteo_semana[dia_semana] += 1
+        except Exception as e:
+            print(f"Aviso: No se pudo obtener la estadística semanal: {e}")
+
+        datos_semana_grafico = [
+            {"label": etiquetas_dias[i], "total": conteo_semana[i]} for i in range(5)
+        ]
+
         return jsonify({
             "data": data_personas,
             "stats": {
@@ -177,14 +211,7 @@ def get_dashboard_data():
                 "sync": 100, 
                 "fecha": datetime.now().strftime("%d %b")
             },
-            # Datos simulados para Chart.js (Puedes cambiar esto para que haga un count real en la base de datos)
-            "semana": [
-                {"label": "L", "total": 12}, 
-                {"label": "M", "total": 8}, 
-                {"label": "X", "total": 15}, 
-                {"label": "J", "total": 20}, 
-                {"label": "V", "total": total_salidas_hoy} 
-            ]
+            "semana": datos_semana_grafico
         })
     except Exception as e:
         print(f"Error cargando dashboard: {e}")
@@ -199,7 +226,6 @@ def get_alumnado_completo():
                                         {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento', 'recreo', 'salida_anticipada']})
         return jsonify({"status": "success", "data": estudiantes})
     except Exception as e:
-        # Fallback si no existen los campos de recreo en Odoo
         estudiantes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento']})
         return jsonify({"status": "success", "data": estudiantes})
 
@@ -275,7 +301,14 @@ def Asistencia_profesor():
     try:
         datos = request.get_json()
         nfc_id = datos.get("id_NFC")
-        estado_asistencia = datos.get("estado_asistencia")
+        
+        estado_bruto = str(datos.get("estado_asistencia", "")).lower()
+        if "entrada" in estado_bruto or "llego" in estado_bruto:
+            estado_asistencia = "llego al centro"
+        elif "salida" in estado_bruto or "salio" in estado_bruto:
+            estado_asistencia = "salio del centro"
+        else:
+            estado_asistencia = estado_bruto
 
         profesor = models.execute_kw(DB, uid, PASSWORD,
                                  'acceso_ies.profesor', 'search_read',
@@ -286,31 +319,34 @@ def Asistencia_profesor():
             return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'})
 
         profesor_encontrado = profesor[0]
+        nombre_profe = profesor_encontrado.get("nombre", "El profesor")
         
         datos_para_odoo = {
             "estado_asistencia": estado_asistencia,
             "profesor_id": profesor_encontrado["id"]
         }
 
-        nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 'create', [[datos_para_odoo]])
-        if estado_asistencia == "llego al centro":
+        try:
+            nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 'create', [[datos_para_odoo]])
+        except Exception as error_odoo:
+            return jsonify({'status': 'error', 'mensaje': f"Odoo rechazó el registro: {str(error_odoo)}"}), 500
             
+        if estado_asistencia == "llego al centro":
             return jsonify({
                 'status': 'success',
-                'mensaje': f'Asistencia registrada para {profesor_encontrado["nombre"]}',
+                'mensaje': f'Asistencia registrada para {nombre_profe}',
                 'registro_id': nuevo_registro_id
             }), 201
         else:
             return jsonify({
                 'status': 'success',
-                'mensaje': f'Salida registrada para {profesor_encontrado["nombre"]}',
+                'mensaje': f'Salida registrada para {nombre_profe}',
                 'registro_id': nuevo_registro_id
             }), 201
             
-
     except Exception as e:
         print(e)
-        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+        return jsonify({'status': 'error', 'mensaje': f"Fallo del servidor: {str(e)}"}), 500
 
 @app.route("/AsistenciaEstudiante", methods=['POST'])
 def Asistencia_estudiante():
@@ -318,7 +354,14 @@ def Asistencia_estudiante():
     
     try:
         nfc_id = datos.get("id_NFC")
-        estado_asistencia = datos.get("estado_asistencia")
+        
+        estado_bruto = str(datos.get("estado_asistencia", "")).lower()
+        if "tarde" in estado_bruto or "entrada" in estado_bruto:
+            estado_asistencia = "llego tarde" 
+        elif "salida" in estado_bruto or "anticipada" in estado_bruto:
+            estado_asistencia = "salida anticipada"
+        else:
+            estado_asistencia = estado_bruto
 
         estudiantes = models.execute_kw(DB, uid, PASSWORD,
                                  'acceso_ies.estudiante', 'search_read',
@@ -329,25 +372,32 @@ def Asistencia_estudiante():
             return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
 
         estudiante_encontrado = estudiantes[0]
-        print(estudiante_encontrado)
-        if estudiante_encontrado["salida_anticipada"] == False:
-            return jsonify({'status': 'error', 'mensaje': 'El estudiante no tiene permisos para salir'}), 404
+        nombre_alumno = estudiante_encontrado.get("nombre", "El estudiante")
+        
+        if estado_asistencia == "salida anticipada":
+            if estudiante_encontrado.get("salida_anticipada") == False:
+                return jsonify({'status': 'error', 'mensaje': f'{nombre_alumno} no tiene permisos para salir'}), 404
         
         datos_para_odoo = {
             "estado_asistencia": estado_asistencia,
             "estudiante_id": estudiante_encontrado["id"] 
         }
 
-        nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', [[datos_para_odoo]])
+        try:
+            nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', [[datos_para_odoo]])
+        except Exception as error_odoo:
+            return jsonify({'status': 'error', 'mensaje': f"Odoo DB Error: {str(error_odoo)}"}), 500
+        
+        texto_registro = "Llegada tarde" if estado_asistencia == "llego tarde" else "Salida"
         
         return jsonify({
             'status': 'success', 
-            'mensaje': f'Asistencia registrada para {estudiante_encontrado["nombre"]}',
+            'mensaje': f'{texto_registro} registrada para {nombre_alumno}',
             'registro_id': nuevo_registro_id
         }), 201
 
     except Exception as e:
-        return jsonify({'status': 'error', 'mensaje': "Usuario no encontrado"}), 500
+        return jsonify({'status': 'error', 'mensaje': f"Error interno del servidor: {str(e)}"}), 500
 
 @app.route('/GetProfesor', methods=['POST'])
 def get_profesor():
@@ -371,110 +421,176 @@ def get_profesor():
     except Exception as e:
         return jsonify({'status': 'error', 'data': str(e)})
 
-    
 @app.route('/api/asistencia', methods=['GET'])
 def get_asistencia():
-    if not uid: 
-        return jsonify({'status': 'error', 'mensaje': 'Sin conexión a Odoo'}), 500
+    if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión a Odoo'}), 500
     
     filtro = request.args.get('filtro', 'todos')
-    data_formateada = []
+    fecha = request.args.get('fecha')
+    search_domain = []
     
+    if fecha:
+        inicio_dia = f"{fecha} 00:00:00"
+        fin_dia = f"{fecha} 23:59:59"
+        search_domain = [('create_date', '>=', inicio_dia), ('create_date', '<=', fin_dia)]
+    
+    data_formateada = []
+    limite = 200 if fecha else 50
+    
+    def procesar_registros(registros, campo_id, colectivo, default_tipo):
+        for reg in registros:
+            nombre = "Desconocido"
+            if reg.get(campo_id):
+                if isinstance(reg[campo_id], list) and len(reg[campo_id]) > 1:
+                    nombre = reg[campo_id][1]
+                else:
+                    nombre = str(reg[campo_id])
+
+            tipo = reg.get('estado_asistencia', default_tipo) 
+            hora_cruda = reg.get('create_date', '--')
+            hora_formateada = hora_cruda
+            
+            if hora_cruda != '--':
+                try:
+                    dt = datetime.strptime(hora_cruda, '%Y-%m-%d %H:%M:%S')
+                    hora_formateada = dt.strftime('%d/%m/%Y %H:%M')
+                except:
+                    pass
+
+            data_formateada.append({
+                "nombre": nombre,
+                "colectivo": colectivo,
+                "tipo": tipo,
+                "hora": hora_formateada,
+                "raw_date": hora_cruda,
+                "notas": "Registrado por NFC"
+            })
+
     try:
         if filtro in ['todos', 'alumnos']:
-            registros_alumnos = models.execute_kw(
-                DB, uid, PASSWORD, 
-                'acceso_ies.asistencia_estudiante', 
-                'search_read', 
-                [[]], 
-                {
-                    'fields': ['estudiante_id', 'estado_asistencia', 'create_date'], 
-                    'order': 'create_date desc', 
-                    'limit': 50 
-                }
-            )
-            
-            for reg in registros_alumnos:
-                nombre = "Desconocido"
-                if reg.get('estudiante_id'):
-                    if isinstance(reg['estudiante_id'], list) and len(reg['estudiante_id']) > 1:
-                        nombre = reg['estudiante_id'][1]
-                    else:
-                        nombre = str(reg['estudiante_id'])
-
-                tipo = reg.get('estado_asistencia', 'llegada_tarde') 
-                
-                hora_cruda = reg.get('create_date', '--')
-                hora_formateada = hora_cruda
-                if hora_cruda != '--':
-                    try:
-                        dt = datetime.strptime(hora_cruda, '%Y-%m-%d %H:%M:%S')
-                        hora_formateada = dt.strftime('%d/%m/%Y %H:%M')
-                    except:
-                        pass
-
-                data_formateada.append({
-                    "nombre": nombre,
-                    "colectivo": "alumno",
-                    "tipo": tipo,
-                    "hora": hora_formateada,
-                    "raw_date": hora_cruda,
-                    "notas": "Registrado por NFC"
-                })
+            registros_alumnos = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 
+                'search_read', [search_domain],
+                {'fields': ['estudiante_id', 'estado_asistencia', 'create_date'], 'order': 'create_date desc', 'limit': limite})
+            procesar_registros(registros_alumnos, 'estudiante_id', 'alumno', 'llegada_tarde')
 
         if filtro in ['todos', 'profesores']:
-            try:
-                registros_profes = models.execute_kw(
-                    DB, uid, PASSWORD, 
-                    'acceso_ies.asistencia_profesor', 
-                    'search_read', 
-                    [[]], 
-                    {
-                        'fields': ['profesor_id', 'estado_asistencia', 'create_date'], 
-                        'order': 'create_date desc', 
-                        'limit': 50 
-                    }
-                )
-                
-                for reg in registros_profes:
-                    nombre = "Desconocido"
-                    if reg.get('profesor_id'):
-                        if isinstance(reg['profesor_id'], list) and len(reg['profesor_id']) > 1:
-                            nombre = reg['profesor_id'][1]
-                        else:
-                            nombre = str(reg['profesor_id'])
-                            
-                    tipo = reg.get('estado_asistencia', 'salida_anticipada')
-                    hora_cruda = reg.get('create_date', '--')
-                    hora_formateada = hora_cruda
-                    if hora_cruda != '--':
-                        try:
-                            dt = datetime.strptime(hora_cruda, '%Y-%m-%d %H:%M:%S')
-                            hora_formateada = dt.strftime('%d/%m/%Y %H:%M')
-                        except:
-                            pass
-
-                    data_formateada.append({
-                        "nombre": nombre,
-                        "colectivo": "profesor",
-                        "tipo": tipo,
-                        "hora": hora_formateada,
-                        "raw_date": hora_cruda,
-                        "notas": "Registrada asistencia por NFC"
-                    })
-            except Exception as e:
-                print(f"Aviso: No se pudo obtener asistencia de profesores. Error: {e}")
+            registros_profes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 
+                'search_read', [search_domain],
+                {'fields': ['profesor_id', 'estado_asistencia', 'create_date'], 'order': 'create_date desc', 'limit': limite})
+            procesar_registros(registros_profes, 'profesor_id', 'profesor', 'salida_anticipada')
 
         data_formateada = sorted(data_formateada, key=lambda x: x['raw_date'], reverse=True)
-        
-        for item in data_formateada:
-            item.pop('raw_date', None)
+        for item in data_formateada: item.pop('raw_date', None)
 
         return jsonify({"status": "success", "data": data_formateada})
         
     except Exception as e:
         print(f"Error al obtener asistencia de Odoo: {e}")
         return jsonify({"status": "error", "mensaje": str(e)})
+
+@app.route('/api/importar_asistencia', methods=['POST'])
+def importar_asistencia():
+    if not uid: 
+        return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
+    
+    datos_peticion = request.get_json()
+    incidencias = datos_peticion.get('datos', [])
+    
+    if not incidencias:
+        return jsonify({'status': 'error', 'mensaje': 'No hay datos para importar'}), 400
+        
+    exitosos = 0
+    errores = []
+
+    try:
+        estudiantes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos']})
+        profesores = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.profesor', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos']})
+        
+        def generar_nombre_completo(p):
+            nom = p.get('nombre') if isinstance(p.get('nombre'), str) else ''
+            ape = p.get('apellidos') if isinstance(p.get('apellidos'), str) else ''
+            return f"{nom} {ape}".strip().lower()
+        
+        mapa_estudiantes = {generar_nombre_completo(e): e['id'] for e in estudiantes}
+        mapa_profesores = {generar_nombre_completo(p): p['id'] for p in profesores}
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': f'Error cargando datos base: {str(e)}'}), 500
+
+    for idx, inc in enumerate(incidencias):
+        nombre_csv = inc.get('nombre', '').strip().lower()
+        colectivo_csv = inc.get('colectivo', '').strip().lower()
+        tipo_csv = inc.get('tipo', '').strip().lower()
+        
+        es_alumno = 'alumno' in colectivo_csv
+        
+        estado_asistencia = ""
+        
+        if es_alumno:
+            if "tarde" in tipo_csv:
+                estado_asistencia = "llego tarde"
+            else:
+                estado_asistencia = "salida anticipada"
+        else:
+            if "salida" in tipo_csv or "anticipada" in tipo_csv:
+                estado_asistencia = "salio del centro"
+            else:
+                estado_asistencia = "llego al centro"
+
+        persona_id = None
+        modelo = ''
+        campo_id = ''
+        
+        if es_alumno:
+            modelo = 'acceso_ies.asistencia_estudiante'
+            campo_id = 'estudiante_id'
+            
+            persona_id = mapa_estudiantes.get(nombre_csv)
+            if not persona_id:
+                for nombre_bd, id_bd in mapa_estudiantes.items():
+                    if nombre_csv in nombre_bd or nombre_bd in nombre_csv:
+                        persona_id = id_bd
+                        break
+        else:
+            modelo = 'acceso_ies.asistencia_profesor'
+            campo_id = 'profesor_id'
+            
+            persona_id = mapa_profesores.get(nombre_csv)
+            if not persona_id:
+                for nombre_bd, id_bd in mapa_profesores.items():
+                    if nombre_csv in nombre_bd or nombre_bd in nombre_csv:
+                        persona_id = id_bd
+                        break
+                        
+        if not persona_id:
+            errores.append(f"No encontrado en Odoo: {inc.get('nombre')}")
+            continue
+            
+        datos_odoo = {
+            campo_id: persona_id,
+            'estado_asistencia': estado_asistencia,
+        }
+        
+        try:
+            models.execute_kw(DB, uid, PASSWORD, modelo, 'create', [[datos_odoo]])
+            exitosos += 1
+        except Exception as e:
+            errores.append(f"Odoo rechazó a {inc.get('nombre')} (Estado intentado: {estado_asistencia}): {str(e)}")
+
+    mensaje = f"Importados {exitosos} registros correctamente."
+    status = 'success'
+    
+    if errores:
+        print("--- ERRORES DE IMPORTACIÓN ---")
+        for err in errores: print(err)
+        
+        if exitosos == 0:
+            status = 'error'
+            mensaje = f"Fallo al importar. Verifica los estados en la consola."
+        else:
+            mensaje += f" ({len(errores)} fallaron. Mira la consola de Python)."
+        
+    return jsonify({'status': status, 'mensaje': mensaje, 'exitosos': exitosos, 'errores': errores})
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
