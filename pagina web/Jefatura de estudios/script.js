@@ -686,7 +686,7 @@ async function procesarImportacionCSV(inputElement) {
         }
 
         if (incidenciasAImportar.length === 0) {
-            if (feedback) feedback.innerHTML = '<span style="color:red;">El archivo no vale.</span>';
+            if (feedback) feedback.innerHTML = '<span style="color:red;">El archivo no vale o está vacío.</span>';
             return;
         }
 
@@ -701,15 +701,32 @@ async function procesarImportacionCSV(inputElement) {
 
             let json = await respuesta.json();
 
+            let htmlErrores = '';
+            if (json.errores && json.errores.length > 0) {
+                htmlErrores = `
+                    <div style="margin-top: 10px; padding: 10px; background-color: #fee2e2; border: 1px solid #f87171; border-radius: 5px; max-height: 120px; overflow-y: auto; text-align: left;">
+                        <strong style="color: #991b1b; font-size: 0.85em;">Detalle de registros omitidos:</strong>
+                        <ul style="color: #b91c1c; font-size: 0.8em; margin-top: 5px; padding-left: 20px;">
+                            ${json.errores.map(err => `<li>${err}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
             if (json.status === 'success' || json.status === 'exito') {
-                // AQUÍ ESTÁ LA CORRECCIÓN APLICADA:
-                if (feedback) feedback.innerHTML = '<span style="color:green;">Se han importado los registros correctamente.</span>';
+                if (feedback) {
+                    let colorMensaje = json.errores.length > 0 ? '#ca8a04' : 'green'; 
+                    feedback.innerHTML = `<span style="color:${colorMensaje}; font-weight:bold;">${json.mensaje}</span>` + htmlErrores;
+                }
                 cargarAsistencia();
             } else {
-                if (feedback) feedback.innerHTML = '<span style="color:red;">Error: Se ha producido un error al importar los registros.</span>';
+                if (feedback) {
+                    feedback.innerHTML = `<span style="color:red; font-weight:bold;">Error: ${json.mensaje || 'Fallo al importar'}</span>` + htmlErrores;
+                }
             }
+            
         } catch (error) {
-            if (feedback) feedback.innerHTML = '<span style="color:red;">Error de red.</span>';
+            if (feedback) feedback.innerHTML = '<span style="color:red;">Error de red al conectar con el servidor.</span>';
         }
 
         inputElement.value = '';

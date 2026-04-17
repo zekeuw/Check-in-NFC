@@ -5,7 +5,7 @@ let esperandoNFC = false;
 let bufferTeclado = '';
 let timeoutReinicio;
 
-const pantalla = document.getElementById('pantalla-status');
+const pantalla = document.getElementById('pantalla-nfc');
 
 const reiniciarConsola = () => {
   esperandoNFC = false;

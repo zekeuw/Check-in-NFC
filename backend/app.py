@@ -186,18 +186,18 @@ def get_dashboard_data():
         
         try:
             asistencias_semana = models.execute_kw(DB, uid, PASSWORD, modelo_asistencia, 'search_read',
-                [[('create_date', '>=', inicio_semana_str)]],
-                {'fields': ['create_date']}
+                [[('fecha', '>=', inicio_semana_str)]],
+                {'fields': ['fecha']}
             )
             for asis in asistencias_semana:
-                fecha_str = asis.get('create_date')
+                fecha_str = asis.get('fecha')
                 if fecha_str:
                     fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d %H:%M:%S')
                     dia_semana = fecha_dt.weekday()
                     if dia_semana in conteo_semana:
                         conteo_semana[dia_semana] += 1
         except Exception as e:
-            print(f"Aviso: No se pudo obtener la estadística semanal: {e}")
+            print(f"Aviso: No se pudo obtener la estadística semanal (¿Creaste el campo 'fecha'?): {e}")
 
         datos_semana_grafico = [
             {"label": etiquetas_dias[i], "total": conteo_semana[i]} for i in range(5)
@@ -321,9 +321,13 @@ def Asistencia_profesor():
         profesor_encontrado = profesor[0]
         nombre_profe = profesor_encontrado.get("nombre", "El profesor")
         
+        # Generamos la hora actual UTC para el campo nuevo 'fecha'
+        ahora_utc = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        
         datos_para_odoo = {
             "estado_asistencia": estado_asistencia,
-            "profesor_id": profesor_encontrado["id"]
+            "profesor_id": profesor_encontrado["id"],
+            "fecha": ahora_utc
         }
 
         try:
@@ -378,9 +382,13 @@ def Asistencia_estudiante():
             if estudiante_encontrado.get("salida_anticipada") == False:
                 return jsonify({'status': 'error', 'mensaje': f'{nombre_alumno} no tiene permisos para salir'}), 404
         
+        # Generamos la hora actual UTC para el campo nuevo 'fecha'
+        ahora_utc = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        
         datos_para_odoo = {
             "estado_asistencia": estado_asistencia,
-            "estudiante_id": estudiante_encontrado["id"] 
+            "estudiante_id": estudiante_encontrado["id"],
+            "fecha": ahora_utc
         }
 
         try:
@@ -432,7 +440,7 @@ def get_asistencia():
     if fecha:
         inicio_dia = f"{fecha} 00:00:00"
         fin_dia = f"{fecha} 23:59:59"
-        search_domain = [('create_date', '>=', inicio_dia), ('create_date', '<=', fin_dia)]
+        search_domain = [('fecha', '>=', inicio_dia), ('fecha', '<=', fin_dia)]
     
     data_formateada = []
     limite = 200 if fecha else 50
@@ -447,7 +455,9 @@ def get_asistencia():
                     nombre = str(reg[campo_id])
 
             tipo = reg.get('estado_asistencia', default_tipo) 
-            hora_cruda = reg.get('create_date', '--')
+            
+            # Priorizamos tu nuevo campo 'fecha'. Si está vacío, pillamos el viejo 'create_date'
+            hora_cruda = reg.get('fecha') or reg.get('create_date', '--')
             hora_formateada = hora_cruda
             
             if hora_cruda != '--':
@@ -463,23 +473,23 @@ def get_asistencia():
                 "tipo": tipo,
                 "hora": hora_formateada,
                 "raw_date": hora_cruda,
-                "notas": "Registrado por NFC"
+                "notas": "Registrado por NFC / CSV"
             })
 
     try:
         if filtro in ['todos', 'alumnos']:
             registros_alumnos = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 
                 'search_read', [search_domain],
-                {'fields': ['estudiante_id', 'estado_asistencia', 'create_date'], 'order': 'create_date desc', 'limit': limite})
+                {'fields': ['estudiante_id', 'estado_asistencia', 'create_date', 'fecha'], 'order': 'fecha desc', 'limit': limite})
             procesar_registros(registros_alumnos, 'estudiante_id', 'alumno', 'llegada_tarde')
 
         if filtro in ['todos', 'profesores']:
             registros_profes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 
                 'search_read', [search_domain],
-                {'fields': ['profesor_id', 'estado_asistencia', 'create_date'], 'order': 'create_date desc', 'limit': limite})
+                {'fields': ['profesor_id', 'estado_asistencia', 'create_date', 'fecha'], 'order': 'fecha desc', 'limit': limite})
             procesar_registros(registros_profes, 'profesor_id', 'profesor', 'salida_anticipada')
 
-        data_formateada = sorted(data_formateada, key=lambda x: x['raw_date'], reverse=True)
+        data_formateada = sorted(data_formateada, key=lambda x: str(x.get('raw_date', '')), reverse=True)
         for item in data_formateada: item.pop('raw_date', None)
 
         return jsonify({"status": "success", "data": data_formateada})
@@ -522,8 +532,9 @@ def importar_asistencia():
         colectivo_csv = inc.get('colectivo', '').strip().lower()
         tipo_csv = inc.get('tipo', '').strip().lower()
         
-        es_alumno = 'alumno' in colectivo_csv
+        hora_csv = inc.get('hora', '').strip() 
         
+        es_alumno = 'alumno' in colectivo_csv
         estado_asistencia = ""
         
         if es_alumno:
@@ -566,13 +577,29 @@ def importar_asistencia():
             errores.append(f"No encontrado en Odoo: {inc.get('nombre')}")
             continue
             
+        # Parseamos la fecha del CSV
+        fecha_odoo = None
+        if hora_csv and hora_csv != '--':
+            try:
+                if hora_csv.count(':') == 1:
+                    dt = datetime.strptime(hora_csv, '%d/%m/%Y %H:%M')
+                else:
+                    dt = datetime.strptime(hora_csv, '%d/%m/%Y %H:%M:%S')
+                fecha_odoo = dt.strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                pass
+
         datos_odoo = {
             campo_id: persona_id,
             'estado_asistencia': estado_asistencia,
         }
         
+        # Le enviamos la fecha directamente al nuevo campo
+        if fecha_odoo:
+            datos_odoo['fecha'] = fecha_odoo
+        
         try:
-            models.execute_kw(DB, uid, PASSWORD, modelo, 'create', [[datos_odoo]])
+            nuevo_id = models.execute_kw(DB, uid, PASSWORD, modelo, 'create', [[datos_odoo]])
             exitosos += 1
         except Exception as e:
             errores.append(f"Odoo rechazó a {inc.get('nombre')} (Estado intentado: {estado_asistencia}): {str(e)}")
@@ -594,3 +621,4 @@ def importar_asistencia():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
+    

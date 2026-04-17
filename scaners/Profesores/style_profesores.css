@@ -1,3 +1,17 @@
+:root {
+  --bg-color: #f8fafc;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --primary: #1e40af;
+  --success: #10b981;
+  --success-hover: #059669;
+  --danger: #e11d48;
+  --danger-hover: #be123c;
+  --console-bg: #0f172a;
+  --console-text: #38bdf8;
+  --warning: #f59e0b;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -5,9 +19,10 @@
 }
 
 body.terminal-body {
-    font-family: Arial, sans-serif;
-    background-color: #f1f5f9;
-    height: 100vh;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
 }
