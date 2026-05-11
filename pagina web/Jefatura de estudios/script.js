@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'http://10.102.7.221:5000';
 let miGraficoChartJs = null;
 
 const CURSOS_MAP = {
@@ -94,7 +94,7 @@ function actualizarEstadoConexion(estaConectado) {
 async function cargarDashboard() {
     try {
         let tipoSeleccionado = document.getElementById('filtro-dashboard-tipo').value;
-        let respuesta = await fetch(BASE_URL + '/api/dashboard?tipo=' + tipoSeleccionado, {headers: {"x-api-key": "kartu prosím"}});
+        let respuesta = await fetch(BASE_URL + '/api/dashboard?tipo=' + tipoSeleccionado, {headers: {"x-api-key": "kartu_prosim"}});
 
         if (!respuesta.ok) {
             throw new Error("Fallo en la peticion al servidor");
@@ -171,7 +171,7 @@ async function cargarDashboard() {
             document.getElementById('current-date').innerText = datos.stats.fecha || '--';
         }
 
-        let respuestaAsis = await fetch(BASE_URL + '/api/asistencia?filtro=' + tipoSeleccionado, {headers: {"x-api-key": "kartu prosím"}});
+        let respuestaAsis = await fetch(BASE_URL + '/api/asistencia?filtro=' + tipoSeleccionado, {headers: {"x-api-key": "kartu_prosim"}});
         let jsonAsistencia = await respuestaAsis.json();
 
         let conteoSemana = [0, 0, 0, 0, 0];
@@ -255,7 +255,7 @@ async function cargarDashboard() {
 async function cargarAlumnado() {
     let cuerpoTabla = document.getElementById('alumnado-body');
     try {
-        let respuesta = await fetch(BASE_URL + '/api/alumnado', {headers: {"x-api-key": "kartu prosím"}});
+        let respuesta = await fetch(BASE_URL + '/api/alumnado', {headers: {"x-api-key": "kartu_prosim"}});
         let json = await respuesta.json();
 
         if (json.status === 'success') {
@@ -320,7 +320,7 @@ async function cambiarEstadoPersona(idPersona, campoCambiar, nuevoValor, tipoPer
     try {
         let respuesta = await fetch(BASE_URL + '/api/actualizar_estado', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu prosím" },
+            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
             body: JSON.stringify({
                 id: idPersona,
                 tipo: tipoPersona,
@@ -391,7 +391,7 @@ async function crearAlumnoDesdeWeb() {
 async function cargarProfesorado() {
     let cuerpoTabla = document.getElementById('profesorado-body');
     try {
-        let respuesta = await fetch(BASE_URL + '/api/profesorado', {headers: {"x-api-key": "kartu prosím"}});
+        let respuesta = await fetch(BASE_URL + '/api/profesorado', {headers: {"x-api-key": "kartu_prosim"}});
         let json = await respuesta.json();
 
         if (json.status === 'success') {
@@ -443,7 +443,7 @@ async function crearProfesorDesdeWeb() {
     try {
         let respuesta = await fetch(BASE_URL + '/create', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu prosím" },
+            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
             body: JSON.stringify(datosEnviados)
         });
         let json = await respuesta.json();
@@ -476,7 +476,7 @@ async function cargarAsistencia() {
             url += '&fecha=' + fechaSeleccionada;
         }
 
-        let respuesta = await fetch(url, {headers: {"x-api-key": "kartu prosím"}});
+        let respuesta = await fetch(url, {headers: {"x-api-key": "kartu_prosim"}});
         let json = await respuesta.json();
 
         if (json.status === 'success') {
@@ -537,7 +537,7 @@ async function cargarSelectNFC() {
             ruta = '/api/profesorado';
         }
 
-        let respuesta = await fetch(BASE_URL + ruta, {headers: {"x-api-key": "kartu prosím"}});
+        let respuesta = await fetch(BASE_URL + ruta, {headers: {"x-api-key": "kartu_prosim"}});
         let json = await respuesta.json();
 
         if (json.status === 'success') {
@@ -581,7 +581,7 @@ async function guardarVinculacion() {
     try {
         let respuesta = await fetch(BASE_URL + '/api/vincular_nfc', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu prosím" },
+            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
             body: JSON.stringify(datosEnviados)
         });
         let json = await respuesta.json();
@@ -695,7 +695,7 @@ async function procesarImportacionCSV(inputElement) {
         try {
             let respuesta = await fetch(BASE_URL + '/api/importar_asistencia', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', "x-api-key": "kartu prosím" },
+                headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
                 body: JSON.stringify({ datos: incidenciasAImportar })
             });
 
