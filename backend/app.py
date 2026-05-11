@@ -8,7 +8,7 @@ DB = 'Servidor_proyecto'
 USERNAME = 'admin'
 PASSWORD = 'admin'
 
-SECRET_KEY = "kartu prosím"
+SECRET_KEY = "kartu_prosim"
 
 app = Flask(__name__)
 CORS(app)
