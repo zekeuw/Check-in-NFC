@@ -8,6 +8,8 @@ DB = 'Servidor_proyecto'
 USERNAME = 'admin'
 PASSWORD = 'admin'
 
+SECRET_KEY = "kartu prosím"
+
 app = Flask(__name__)
 CORS(app)
 
@@ -16,6 +18,16 @@ models = None
 
 @app.before_request
 def asegurar_conexion_odoo():
+
+    if request.method == 'OPTIONS':
+        return
+
+    clave_recibida = request.headers.get('x-api-key')
+    
+    if clave_recibida != SECRET_KEY:
+        return jsonify({'status': 'error', 'mensaje': 'Acceso denegado. API Key inválida o faltante.'}), 401
+    
+
     global uid, models
     
     if uid:
