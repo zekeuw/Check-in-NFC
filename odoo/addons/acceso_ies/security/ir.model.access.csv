@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_acceso_ies_profesor,acceso_ies.profesor,model_acceso_ies_profesor,base.group_user,1,1,1,1
+access_acceso_ies_estudiante,acceso_ies.estudiante,model_acceso_ies_estudiante,base.group_user,1,1,1,1
+access_acceso_ies_asistencia_profesor,acceso_ies.asistencia_profesor,model_acceso_ies_asistencia_profesor,base.group_user,1,1,1,1
+access_acceso_ies_asistencia_estudiante,acceso_ies.asistencia_estudiante,model_acceso_ies_asistencia_estudiante,base.group_user,1,1,1,1

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal de Asistencia - Estudiantes</title>
+    <link rel="stylesheet" href="style_estudiantes.css">
+</head>
+<body>
+    <header class="top-bar">
+        <h1>IES San Juan de la Rambla - Control de Alumnado</h1>
+    </header>
+
+    <div class="terminal-container">
+        <div class="terminal-card">
+            <h2>Control de Alumnado</h2>
+            <p>Elige la operación y pasa tu tarjeta por el lector.</p>
+
+            <div class="btn-grid">
+                <button class="btn-action btn-entrada" onclick="seleccionarOperacion('llegada_tarde')">
+                    <span>ENTRADA</span>
+                    <span class="btn-desc">(Llegada Tarde)</span>
+                </button>
+
+                <button class="btn-action btn-salida" onclick="seleccionarOperacion('salida_anticipada')">
+                    <span>SALIDA</span>
+                    <span class="btn-desc">(Salida Anticipada)</span>
+                </button>
+            </div>
+
+            <div id="pantalla-status" class="scan-area">
+                > Sistema listo para operar.<br>
+                > Paso 1: Selecciona Entrada o Salida.<br>
+                > Paso 2: Escanea tu tarjeta NFC.
+            </div>
+        </div>
+    </div>
+
+    <script src="estudiantes.js"></script>
+</body>
+</html>

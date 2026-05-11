@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal - Asistencia Profesores</title>
+    <link rel="stylesheet" href="style_profesores.css">
+</head>
+<body class="terminal-body">
+
+    <header class="terminal-header">
+        IES San Juan de la Rambla - Control de Profesorado
+    </header>
+
+    <div class="terminal-container">
+        <div class="terminal-card">
+            <h2>Registro de Entrada/Salida</h2>
+            <p>Selecciona una opción y pasa tu tarjeta por el lector.</p>
+
+            <div class="terminal-buttons">
+                <button class="btn-terminal btn-entrada" onclick="seleccionarOperacion('llego al centro')">
+                    <span class="btn-icon">➜</span>
+                    <span class="btn-text">FICHAR ENTRADA</span>
+                </button>
+
+                <button class="btn-terminal btn-salida" onclick="seleccionarOperacion('salio del centro')">
+                    <span class="btn-icon">✖</span>
+                    <span class="btn-text">FICHAR SALIDA</span>
+                </button>
+            </div>
+            
+            <div id="pantalla-nfc" class="consola-nfc">
+                > Sistema listo.<br>
+                > Esperando selección de operación...
+            </div>
+        </div>
+    </div>
+
+    <script src="profesores.js"></script>
+</body>
+</html>

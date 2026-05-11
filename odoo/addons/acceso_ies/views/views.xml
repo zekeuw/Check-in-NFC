@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_estudiante_search" model="ir.ui.view">
+        <field name="name">acceso_ies.estudiante.search</field>
+        <field name="model">acceso_ies.estudiante</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="nombre"/>
+                <field name="apellidos"/>
+                <field name="dni"/>
+                <field name="curso"/>
+                <field name="id_NFC"/>
+                <group expand="0" string="Agrupar por">
+                    <filter string="Curso" name="group_by_curso" context="{'group_by': 'curso'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_estudiante_list" model="ir.ui.view">
+        <field name="name">acceso_ies.estudiante.list</field>
+        <field name="model">acceso_ies.estudiante</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="nombre"/>
+                <field name="apellidos"/>
+                <field name="curso"/>
+                <field name="dni"/>
+                <field name="fecha_nacimiento"/>
+                <field name="id_NFC"/>
+                <field name="recreo" widget="boolean_toggle"/>
+                <field name="salida_anticipada" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_estudiante_form" model="ir.ui.view">
+        <field name="name">acceso_ies.estudiante.form</field>
+        <field name="model">acceso_ies.estudiante</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group string="Identificación">
+                            <field name="nombre"/>
+                            <field name="apellidos"/>
+                            <field name="dni"/>
+                            <field name="curso"/>
+                            <field name="fecha_nacimiento"/>
+                            <field name="id_NFC"/>
+                        </group>
+                        <group string="Permisos">
+                            <field name="recreo"/>
+                            <field name="salida_anticipada"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Historial de Asistencia" name="asistencia">
+                            <field name="registro_ids" readonly="1">
+                                <list>
+                                    <field name="fecha"/>
+                                    <field name="estado_asistencia"/>
+                                    <field name="curso"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_profesor_list" model="ir.ui.view">
+        <field name="name">acceso_ies.profesor.list</field>
+        <field name="model">acceso_ies.profesor</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="nombre"/>
+                <field name="apellidos"/>
+                <field name="dni"/>
+                <field name="departamento"/>
+                <field name="id_NFC"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_profesor_form" model="ir.ui.view">
+        <field name="name">acceso_ies.profesor.form</field>
+        <field name="model">acceso_ies.profesor</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group string="Identificación">
+                        <group>
+                            <field name="nombre"/>
+                            <field name="apellidos"/>
+                            <field name="dni"/>
+                        </group>
+                        <group>
+                            <field name="departamento"/>
+                            <field name="id_NFC"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_asistencia_profesor_list" model="ir.ui.view">
+        <field name="name">acceso_ies.asistencia_profesor.list</field>
+        <field name="model">acceso_ies.asistencia_profesor</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="fecha"/>
+                <field name="profesor_id"/>
+                <field name="id_NFC"/>
+                <field name="estado_asistencia" 
+                       decoration-info="estado_asistencia == 'llego al centro'" 
+                       decoration-warning="estado_asistencia == 'no llego al centro'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_asistencia_estudiante_list" model="ir.ui.view">
+        <field name="name">acceso_ies.asistencia_estudiante.list</field>
+        <field name="model">acceso_ies.asistencia_estudiante</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="fecha"/>
+                <field name="estudiante_id"/>
+                <field name="id_NFC"/>
+                <field name="curso"/>
+                <field name="estado_asistencia"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_estudiantes" model="ir.actions.act_window">
+        <field name="name">Alumnos</field>
+        <field name="res_model">acceso_ies.estudiante</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_estudiante_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Registra al primer alumno</p>
+        </field>
+    </record>
+
+    <record id="action_profesores" model="ir.actions.act_window">
+        <field name="name">Profesores</field>
+        <field name="res_model">acceso_ies.profesor</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_asistencia_estudiante" model="ir.actions.act_window">
+        <field name="name">Asistencia Estudiantes</field>
+        <field name="res_model">acceso_ies.asistencia_estudiante</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_asistencia_profesor" model="ir.actions.act_window">
+        <field name="name">Asistencia Profesores</field>
+        <field name="res_model">acceso_ies.asistencia_profesor</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_acceso_root" name="Control IES" sequence="10"/>
+
+    <menuitem id="menu_estudiantes" 
+              name="Alumnos" 
+              parent="menu_acceso_root" 
+              action="action_estudiantes" 
+              sequence="10"/>
+
+    <menuitem id="menu_profesores" 
+              name="Profesores" 
+              parent="menu_acceso_root" 
+              action="action_profesores" 
+              sequence="15"/>
+
+    <menuitem id="menu_asistencia" 
+              name="Asistencia" 
+              parent="menu_acceso_root" 
+              sequence="20"/>
+
+    <menuitem id="menu_asistencia_estudiantes" 
+              name="Asistencia Alumnos" 
+              parent="menu_asistencia" 
+              action="action_asistencia_estudiante" 
+              sequence="10"/>
+
+    <menuitem id="menu_asistencia_profesores" 
+              name="Asistencia Profesores" 
+              parent="menu_asistencia" 
+              action="action_asistencia_profesor" 
+              sequence="20"/> 
+</odoo>

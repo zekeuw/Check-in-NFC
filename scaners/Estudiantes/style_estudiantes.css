@@ -1,0 +1,134 @@
+:root {
+  --bg-color: #f8fafc;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --primary: #1e40af;
+  --success: #10b981;
+  --success-hover: #059669;
+  --danger: #e11d48;
+  --danger-hover: #be123c;
+  --console-bg: #0f172a;
+  --console-text: #38bdf8;
+  --warning: #f59e0b;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-bar {
+  background-color: white;
+  padding: 20px;
+  text-align: center;
+  border-bottom: 2px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.top-bar h1 {
+  color: var(--primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.terminal-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.terminal-card {
+  background: white;
+  max-width: 700px;
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  text-align: center;
+}
+
+.terminal-card h2 {
+  font-size: 1.75rem;
+  margin-bottom: 8px;
+}
+
+.terminal-card p {
+  color: var(--text-muted);
+  margin-bottom: 30px;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.btn-action {
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.btn-action:active {
+  transform: scale(0.97);
+}
+
+.btn-action span:first-child {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.btn-desc {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.btn-entrada { background-color: var(--success); }
+.btn-entrada:hover { background-color: var(--success-hover); }
+
+.btn-salida { background-color: var(--danger); }
+.btn-salida:hover { background-color: var(--danger-hover); }
+
+.scan-area {
+  background-color: var(--console-bg);
+  color: var(--console-text);
+  padding: 25px;
+  border-radius: 8px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 1rem;
+  text-align: left;
+  min-height: 130px;
+  line-height: 1.6;
+  border-left: 5px solid var(--console-text);
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 600px) {
+  .btn-grid { grid-template-columns: 1fr; }
+  .btn-action { height: 120px; }
+  .terminal-card { padding: 25px; }
+}
