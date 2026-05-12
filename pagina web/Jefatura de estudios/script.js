@@ -47,12 +47,11 @@ function cambiarSeccion(idSeccion, botonClicado) {
 
     document.getElementById('sec-' + idSeccion).style.display = 'block';
 
-    let todosLosBotones = document.getElementsByClassName('nav-btn');
-    for (let i = 0; i < todosLosBotones.length; i++) {
-        todosLosBotones[i].classList.remove('active');
-    }
-
     if (botonClicado) {
+        let todosLosBotones = document.getElementsByClassName('nav-btn');
+        for (let i = 0; i < todosLosBotones.length; i++) {
+            todosLosBotones[i].classList.remove('active');
+        }
         botonClicado.classList.add('active');
     }
 
@@ -385,12 +384,17 @@ async function crearAlumnoDesdeWeb() {
         let json = await respuesta.json();
 
         if (json.status === 'exito' || json.status === 'success') {
-            feedback.innerHTML = '<span style="color:green;">Alumno guardado correctamente</span>';
+            feedback.innerHTML = '<span style="color:green;">Alumno guardado correctamente. Redirigiendo...</span>';
             document.getElementById('add-al-nombre').value = '';
             document.getElementById('add-al-apellidos').value = '';
             document.getElementById('add-al-dni').value = '';
             document.getElementById('add-al-nfc').value = '';
-            cargarAlumnado();
+            
+            setTimeout(() => {
+                feedback.innerHTML = '';
+                cambiarSeccion('alumnado', document.querySelectorAll('.nav-btn')[1]);
+            }, 1500);
+            
         } else {
             feedback.innerHTML = '<span style="color:red;">Error: ' + json.mensaje + '</span>';
         }
@@ -471,12 +475,17 @@ async function crearProfesorDesdeWeb() {
         let json = await respuesta.json();
 
         if (json.status === 'exito' || json.status === 'success') {
-            feedback.innerHTML = '<span style="color:green;">Profesor guardado correctamente</span>';
+            feedback.innerHTML = '<span style="color:green;">Profesor guardado correctamente. Redirigiendo...</span>';
             document.getElementById('add-pr-nombre').value = '';
             document.getElementById('add-pr-apellidos').value = '';
             document.getElementById('add-pr-dni').value = '';
             document.getElementById('add-pr-nfc').value = '';
-            cargarProfesorado();
+            
+            setTimeout(() => {
+                feedback.innerHTML = ''; 
+                cambiarSeccion('profesorado', document.querySelectorAll('.nav-btn')[2]);
+            }, 1500);
+            
         } else {
             feedback.innerHTML = '<span style="color:red;">Error: ' + json.mensaje + '</span>';
         }

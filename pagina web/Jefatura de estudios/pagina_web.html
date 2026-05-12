@@ -159,166 +159,169 @@
                 </div>
 
                 <div id="sec-alumnado" class="seccion-app" style="display: none;">
-                    <div class="grid-main">
-                        <div class="panel">
-                            <div class="panel-header">
-                                <h3>Directorio de Alumnos</h3>
-                                <div class="header-tools" style="display: flex; gap: 10px;">
-                                    <input type="text" id="search-alumnado" placeholder="Buscar alumno..." class="search-mini">
-                                    <button class="btn-action" onclick="cargarAlumnado()">Actualizar</button>
-                                </div>
-                            </div>
-                            <div class="table-container">
-                                <table class="modern-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 50px;">Foto</th>
-                                            <th>Nombre</th>
-                                            <th>Curso</th>
-                                            <th>DNI</th>
-                                            <th>NFC</th>
-                                            <th style="text-align: center;">Recreo</th>
-                                            <th style="text-align: center;">Salida</th>
-                                            <th style="text-align: center;">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="alumnado-body">
-                                        <tr>
-                                            <td colspan="8" style="text-align:center;">Cargando datos...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Directorio de Alumnos</h3>
+                            <div class="header-tools" style="display: flex; gap: 10px;">
+                                <input type="text" id="search-alumnado" placeholder="Buscar alumno..." class="search-mini">
+                                <button class="btn-action" onclick="cargarAlumnado()">Actualizar</button>
+                                <button class="btn-action" style="background-color: #10b981;" onclick="cambiarSeccion('crear-alumno')">+ Nuevo Alumno</button>
                             </div>
                         </div>
-
-                        <div class="panel">
-                            <div class="panel-header">
-                                <h3>Registrar Nuevo Alumno</h3>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Nombre</label>
-                                <input type="text" id="add-al-nombre" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Apellidos</label>
-                                <input type="text" id="add-al-apellidos" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Curso / Grupo</label>
-                                <select id="add-al-curso" class="form-select">
-                                    <option value="" disabled selected>-- Selecciona Curso --</option>
-                                    <optgroup label="Secundaria">
-                                        <option value="1eso">1º ESO</option>
-                                        <option value="2eso">2º ESO</option>
-                                        <option value="3eso">3º ESO</option>
-                                        <option value="4eso">4º ESO</option>
-                                    </optgroup>
-                                    <optgroup label="Bachillerato">
-                                        <option value="1bach">1º Bachillerato</option>
-                                        <option value="2bach">2º Bachillerato</option>
-                                    </optgroup>
-                                    <optgroup label="Informática (FP)">
-                                        <option value="1smr">1º SMR (Medio)</option>
-                                        <option value="2smr">2º SMR (Medio)</option>
-                                        <option value="1dam">1º DAM (Superior)</option>
-                                        <option value="2dam">2º DAM (Superior)</option>
-                                    </optgroup>
-                                    <optgroup label="Agraria / Forestales (FP)">
-                                        <option value="1for">1º Forestales (Medio)</option>
-                                        <option value="2for">2º Forestales (Medio)</option>
-                                        <option value="1gsfor">1º Gestión Forestal (Superior)</option>
-                                        <option value="2gsfor">2º Gestión Forestal (Superior)</option>
-                                    </optgroup>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">DNI / Documento</label>
-                                <input type="text" id="add-al-dni" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Fecha de Nacimiento</label>
-                                <input type="date" id="add-al-fecha" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Código NFC (Opcional)</label>
-                                <input type="text" id="add-al-nfc" class="form-input" placeholder="Escanea o deja vacío">
-                            </div>
-                            <button class="btn-action btn-large" style="width:100%;" onclick="crearAlumnoDesdeWeb()">REGISTRAR
-                                EN ODOO</button>
-                            <div id="add-al-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
+                        <div class="table-container">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">Foto</th>
+                                        <th>Nombre</th>
+                                        <th>Curso</th>
+                                        <th>DNI</th>
+                                        <th>NFC</th>
+                                        <th style="text-align: center;">Recreo</th>
+                                        <th style="text-align: center;">Salida</th>
+                                        <th style="text-align: center;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="alumnado-body">
+                                    <tr>
+                                        <td colspan="8" style="text-align:center;">Cargando datos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
 
-                <div id="sec-profesorado" class="seccion-app" style="display: none;">
-                    <div class="grid-main">
-                        <div class="panel">
-                            <div class="panel-header">
-                                <h3>Directorio de Profesores</h3>
-                                <div class="header-tools" style="display: flex; gap: 10px;">
-                                    <input type="text" id="search-profesorado" placeholder="Buscar profesor..."
-                                        class="search-mini">
-                                    <button class="btn-action" onclick="cargarProfesorado()">Actualizar</button>
-                                </div>
-                            </div>
-                            <div class="table-container">
-                                <table class="modern-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Nombre</th>
-                                            <th>Departamento</th>
-                                            <th>DNI</th>
-                                            <th>NFC</th>
-                                            <th style="text-align: center;">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="profesorado-body">
-                                        <tr>
-                                            <td colspan="5" style="text-align:center;">Cargando datos...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                <div id="sec-crear-alumno" class="seccion-app" style="display: none;">
+                    <div class="panel" style="max-width: 600px; margin: 0 auto;">
+                        <div class="panel-header">
+                            <h3>Registrar Nuevo Alumno</h3>
+                            <button class="btn-borrar" onclick="cambiarSeccion('alumnado', document.querySelectorAll('.nav-btn')[1])">Volver</button>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" id="add-al-nombre" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Apellidos</label>
+                            <input type="text" id="add-al-apellidos" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Curso / Grupo</label>
+                            <select id="add-al-curso" class="form-select">
+                                <option value="" disabled selected>-- Selecciona Curso --</option>
+                                <optgroup label="Secundaria">
+                                    <option value="1eso">1º ESO</option>
+                                    <option value="2eso">2º ESO</option>
+                                    <option value="3eso">3º ESO</option>
+                                    <option value="4eso">4º ESO</option>
+                                </optgroup>
+                                <optgroup label="Bachillerato">
+                                    <option value="1bach">1º Bachillerato</option>
+                                    <option value="2bach">2º Bachillerato</option>
+                                </optgroup>
+                                <optgroup label="Informática (FP)">
+                                    <option value="1smr">1º SMR (Medio)</option>
+                                    <option value="2smr">2º SMR (Medio)</option>
+                                    <option value="1dam">1º DAM (Superior)</option>
+                                    <option value="2dam">2º DAM (Superior)</option>
+                                </optgroup>
+                                <optgroup label="Agraria / Forestales (FP)">
+                                    <option value="1for">1º Forestales (Medio)</option>
+                                    <option value="2for">2º Forestales (Medio)</option>
+                                    <option value="1gsfor">1º Gestión Forestal (Superior)</option>
+                                    <option value="2gsfor">2º Gestión Forestal (Superior)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">DNI / Documento</label>
+                            <input type="text" id="add-al-dni" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fecha de Nacimiento</label>
+                            <input type="date" id="add-al-fecha" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Código NFC (Opcional)</label>
+                            <input type="text" id="add-al-nfc" class="form-input" placeholder="Escanea o deja vacío">
+                        </div>
+                        <button class="btn-action btn-large" style="width:100%;" onclick="crearAlumnoDesdeWeb()">REGISTRAR
+                            EN ODOO</button>
+                        <div id="add-al-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
+                    </div>
+                </div>
 
-                        <div class="panel">
-                            <div class="panel-header">
-                                <h3>Registrar Nuevo Profesor</h3>
+                <div id="sec-profesorado" class="seccion-app" style="display: none;">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Directorio de Profesores</h3>
+                            <div class="header-tools" style="display: flex; gap: 10px;">
+                                <input type="text" id="search-profesorado" placeholder="Buscar profesor..." class="search-mini">
+                                <button class="btn-action" onclick="cargarProfesorado()">Actualizar</button>
+                                <button class="btn-action" style="background-color: #10b981;" onclick="cambiarSeccion('crear-profesor')">+ Nuevo Profesor</button>
                             </div>
-                            <div class="form-group">
-                                <label class="form-label">Nombre</label>
-                                <input type="text" id="add-pr-nombre" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Apellidos</label>
-                                <input type="text" id="add-pr-apellidos" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Departamento</label>
-                                <select id="add-pr-departamento" class="form-select">
-                                    <option value="" disabled selected>-- Selecciona Departamento --</option>
-                                    <option value="informatica">Informática</option>
-                                    <option value="agraria">Agraria</option>
-                                    <option value="matematicas">Matemáticas</option>
-                                    <option value="lengua">Lengua Castellana</option>
-                                    <option value="ingles">Inglés</option>
-                                    <option value="biologia_geologia">Biología y Geología</option>
-                                    <option value="fisica_quimica">Física y Química</option>
-                                    <option value="educacion_fisica">Educación Física</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">DNI / Documento</label>
-                                <input type="text" id="add-pr-dni" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Código NFC (Opcional)</label>
-                                <input type="text" id="add-pr-nfc" class="form-input" placeholder="Escanea o deja vacío">
-                            </div>
-                            <button class="btn-action btn-large" style="width:100%;" onclick="crearProfesorDesdeWeb()">REGISTRAR
-                                EN ODOO</button>
-                            <div id="add-pr-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
                         </div>
+                        <div class="table-container">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Departamento</th>
+                                        <th>DNI</th>
+                                        <th>NFC</th>
+                                        <th style="text-align: center;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="profesorado-body">
+                                    <tr>
+                                        <td colspan="5" style="text-align:center;">Cargando datos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sec-crear-profesor" class="seccion-app" style="display: none;">
+                    <div class="panel" style="max-width: 600px; margin: 0 auto;">
+                        <div class="panel-header">
+                            <h3>Registrar Nuevo Profesor</h3>
+                            <button class="btn-borrar" onclick="cambiarSeccion('profesorado', document.querySelectorAll('.nav-btn')[2])">Volver</button>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" id="add-pr-nombre" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Apellidos</label>
+                            <input type="text" id="add-pr-apellidos" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Departamento</label>
+                            <select id="add-pr-departamento" class="form-select">
+                                <option value="" disabled selected>-- Selecciona Departamento --</option>
+                                <option value="informatica">Informática</option>
+                                <option value="agraria">Agraria</option>
+                                <option value="matematicas">Matemáticas</option>
+                                <option value="lengua">Lengua Castellana</option>
+                                <option value="ingles">Inglés</option>
+                                <option value="biologia_geologia">Biología y Geología</option>
+                                <option value="fisica_quimica">Física y Química</option>
+                                <option value="educacion_fisica">Educación Física</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">DNI / Documento</label>
+                            <input type="text" id="add-pr-dni" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Código NFC (Opcional)</label>
+                            <input type="text" id="add-pr-nfc" class="form-input" placeholder="Escanea o deja vacío">
+                        </div>
+                        <button class="btn-action btn-large" style="width:100%;" onclick="crearProfesorDesdeWeb()">REGISTRAR
+                            EN ODOO</button>
+                        <div id="add-pr-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
                     </div>
                 </div>
 

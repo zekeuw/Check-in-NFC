@@ -165,7 +165,6 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-/* PUNTITO CLÁSICO SIN ANIMACIÓN */
 .status-dot {
     width: 10px;
     height: 10px;
