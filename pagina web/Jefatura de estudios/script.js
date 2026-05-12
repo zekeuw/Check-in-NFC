@@ -364,8 +364,44 @@ async function crearAlumnoDesdeWeb() {
     let nfc = document.getElementById('add-al-nfc').value.trim();
     let feedback = document.getElementById('add-al-feedback');
 
-    if (nombre === '' || apellidos === '' || curso === '') {
-        feedback.innerHTML = '<span style="color:red;">Faltan datos obligatorios</span>';
+    // Validaciones en el cliente
+    if (nombre === '' || apellidos === '' || curso === '' || fecha === '') {
+        feedback.innerHTML = '<span style="color:red;">⚠ Nombre, Apellidos, Curso y Fecha de Nacimiento son obligatorios</span>';
+        return;
+    }
+
+    // Validar que nombre no contenga números
+    if (/\d/.test(nombre)) {
+        feedback.innerHTML = '<span style="color:red;">⚠ El nombre no puede contener números</span>';
+        return;
+    }
+
+    // Validar que apellidos no contengan números
+    if (/\d/.test(apellidos)) {
+        feedback.innerHTML = '<span style="color:red;">⚠ Los apellidos no pueden contener números</span>';
+        return;
+    }
+
+    // Validar DNI si se proporciona
+    if (dni !== '') {
+        let dniPattern = /^\d{8}[A-Z]$/i;
+        if (!dniPattern.test(dni)) {
+            feedback.innerHTML = '<span style="color:red;">⚠ El DNI debe tener 8 dígitos y 1 letra (ej: 12345678A)</span>';
+            return;
+        }
+    }
+
+    // Validar fecha de nacimiento
+    let fechaNac = new Date(fecha);
+    let hoy = new Date();
+    if (fechaNac > hoy) {
+        feedback.innerHTML = '<span style="color:red;">⚠ La fecha de nacimiento no puede ser futura</span>';
+        return;
+    }
+
+    let edad = hoy.getFullYear() - fechaNac.getFullYear();
+    if (edad < 10 || edad > 80) {
+        feedback.innerHTML = '<span style="color:red;">⚠ La edad debe estar entre 10 y 80 años</span>';
         return;
     }
 
@@ -385,12 +421,17 @@ async function crearAlumnoDesdeWeb() {
         let json = await respuesta.json();
 
         if (json.status === 'exito' || json.status === 'success') {
-            feedback.innerHTML = '<span style="color:green;">Alumno guardado correctamente</span>';
+            feedback.innerHTML = '<span style="color:green;">Alumno guardado correctamente. Redirigiendo...</span>';
             document.getElementById('add-al-nombre').value = '';
             document.getElementById('add-al-apellidos').value = '';
             document.getElementById('add-al-dni').value = '';
             document.getElementById('add-al-nfc').value = '';
-            cargarAlumnado();
+            
+            setTimeout(() => {
+                cargarAlumnado();
+                cambiarSeccion('alumnado', document.querySelectorAll('.nav-btn')[1]);
+            }, 1500);
+            
         } else {
             feedback.innerHTML = '<span style="color:red;">Error: ' + json.mensaje + '</span>';
         }
@@ -450,9 +491,31 @@ async function crearProfesorDesdeWeb() {
     let nfc = document.getElementById('add-pr-nfc').value.trim();
     let feedback = document.getElementById('add-pr-feedback');
 
-    if (nombre === '' || departamento === '') {
-        feedback.innerHTML = '<span style="color:red;">Nombre y Departamento son obligatorios</span>';
+    // Validaciones en el cliente
+    if (nombre === '' || apellidos === '' || departamento === '') {
+        feedback.innerHTML = '<span style="color:red;">⚠ Nombre, Apellidos y Departamento son obligatorios</span>';
         return;
+    }
+
+    // Validar que nombre no contenga números
+    if (/\d/.test(nombre)) {
+        feedback.innerHTML = '<span style="color:red;">⚠ El nombre no puede contener números</span>';
+        return;
+    }
+
+    // Validar que apellidos no contengan números
+    if (/\d/.test(apellidos)) {
+        feedback.innerHTML = '<span style="color:red;">⚠ Los apellidos no pueden contener números</span>';
+        return;
+    }
+
+    // Validar DNI si se proporciona
+    if (dni !== '') {
+        let dniPattern = /^\d{8}[A-Z]$/i;
+        if (!dniPattern.test(dni)) {
+            feedback.innerHTML = '<span style="color:red;">⚠ El DNI debe tener 8 dígitos y 1 letra (ej: 12345678A)</span>';
+            return;
+        }
     }
 
     feedback.innerHTML = '<span style="color:blue;">Enviando datos...</span>';
@@ -471,12 +534,17 @@ async function crearProfesorDesdeWeb() {
         let json = await respuesta.json();
 
         if (json.status === 'exito' || json.status === 'success') {
-            feedback.innerHTML = '<span style="color:green;">Profesor guardado correctamente</span>';
+            feedback.innerHTML = '<span style="color:green;">Profesor guardado correctamente. Redirigiendo...</span>';
             document.getElementById('add-pr-nombre').value = '';
             document.getElementById('add-pr-apellidos').value = '';
             document.getElementById('add-pr-dni').value = '';
             document.getElementById('add-pr-nfc').value = '';
-            cargarProfesorado();
+            
+            setTimeout(() => {
+                cargarProfesorado();
+                cambiarSeccion('profesorado', document.querySelectorAll('.nav-btn')[2]);
+            }, 1500);
+            
         } else {
             feedback.innerHTML = '<span style="color:red;">Error: ' + json.mensaje + '</span>';
         }

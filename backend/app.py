@@ -3,6 +3,7 @@ from flask_cors import CORS
 import xmlrpc.client
 from datetime import datetime, timedelta
 import http.client
+import re
 
 URL = 'http://localhost:8072'
 DB = 'Servidor_proyecto'
@@ -76,6 +77,68 @@ def limpiar_datos(datos):
             datos[clave] = None
     return datos
 
+def validar_nombre(nombre):
+    """Valida que el nombre solo contenga letras, espacios, tildes y caracteres especiales españoles"""
+    if not nombre or nombre.strip() == "":
+        return False, "El nombre no puede estar vacío"
+    
+    # Permitir letras (incluyendo ñ, tildes), espacios, guiones y apóstrofes
+    patron = r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-']+$"
+    if not re.match(patron, nombre):
+        return False, "El nombre no puede contener números ni caracteres especiales"
+    
+    return True, None
+
+def validar_dni(dni):
+    """Valida el formato del DNI español (8 dígitos + 1 letra)"""
+    if not dni or dni.strip() == "":
+        return True, None  # DNI es opcional
+    
+    dni = dni.strip().upper()
+    
+    # Verificar formato: 8 dígitos + 1 letra
+    patron = r'^\d{8}[A-Z]$'
+    if not re.match(patron, dni):
+        return False, "El DNI debe tener 8 dígitos seguidos de una letra (ejemplo: 12345678A)"
+    
+    # Validar letra correcta del DNI
+    letras_dni = 'TRWAGMYFPDXBNJZSQVHLCKE'
+    numero = int(dni[:8])
+    letra_correcta = letras_dni[numero % 23]
+    
+    if dni[8] != letra_correcta:
+        return False, f"La letra del DNI no es correcta. Debería ser {letra_correcta}"
+    
+    return True, None
+
+def validar_fecha_nacimiento(fecha_str):
+    """Valida que la fecha de nacimiento sea coherente"""
+    if not fecha_str or fecha_str.strip() == "":
+        return False, "La fecha de nacimiento es obligatoria para estudiantes"
+    
+    try:
+        fecha = datetime.strptime(fecha_str, '%Y-%m-%d')
+        hoy = datetime.now()
+        
+        # Verificar que no sea una fecha futura
+        if fecha > hoy:
+            return False, "La fecha de nacimiento no puede ser futura"
+        
+        # Calcular edad
+        edad = hoy.year - fecha.year - ((hoy.month, hoy.day) < (fecha.month, fecha.day))
+        
+        # Validar rango de edad razonable (entre 10 y 80 años)
+        if edad < 10:
+            return False, f"La edad calculada ({edad} años) es demasiado baja. Verifica la fecha"
+        
+        if edad > 80:
+            return False, f"La edad calculada ({edad} años) es demasiado alta. Verifica la fecha"
+        
+        return True, None
+        
+    except ValueError:
+        return False, "Formato de fecha inválido. Debe ser YYYY-MM-DD"
+
 @app.route('/procesar-datos', methods=['POST'])
 def ejecutar_funcion():
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
@@ -100,34 +163,77 @@ def crear_registro():
     datos = request.get_json()
     tipo = datos.get('tipo', 'alumno')
     
+    # VALIDACIONES COMUNES
+    nombre = datos.get('nombre', '').strip()
+    apellidos = datos.get('apellidos', '').strip()
+    dni = datos.get('dni', '').strip() if datos.get('dni') else None
+    
+    # Validar nombre
+    es_valido, error = validar_nombre(nombre)
+    if not es_valido:
+        return jsonify({'status': 'error', 'mensaje': f'Nombre inválido: {error}'}), 400
+    
+    # Validar apellidos
+    es_valido, error = validar_nombre(apellidos)
+    if not es_valido:
+        return jsonify({'status': 'error', 'mensaje': f'Apellidos inválidos: {error}'}), 400
+    
+    # Validar DNI si se proporciona
+    if dni:
+        es_valido, error = validar_dni(dni)
+        if not es_valido:
+            return jsonify({'status': 'error', 'mensaje': f'DNI inválido: {error}'}), 400
+    
     if tipo == 'profesor':
         modelo = 'acceso_ies.profesor'
+        
+        # Validar departamento
+        departamento = datos.get('departamento')
+        if not departamento:
+            return jsonify({'status': 'error', 'mensaje': 'El departamento es obligatorio para profesores'}), 400
+        
         vals = {
-            'nombre': datos.get('nombre'),
-            'apellidos': datos.get('apellidos'),
-            'dni': datos.get('dni'),
+            'nombre': nombre,
+            'apellidos': apellidos,
+            'dni': dni,
             'id_NFC': datos.get('id_NFC'),
-            'departamento': datos.get('departamento')
+            'departamento': departamento
         }
     else:
         modelo = 'acceso_ies.estudiante'
+        
+        # Validar curso
+        curso = datos.get('curso')
+        if not curso:
+            return jsonify({'status': 'error', 'mensaje': 'El curso es obligatorio para estudiantes'}), 400
+        
+        # Validar fecha de nacimiento
+        fecha_nacimiento = datos.get('fecha_nacimiento')
+        es_valido, error = validar_fecha_nacimiento(fecha_nacimiento)
+        if not es_valido:
+            return jsonify({'status': 'error', 'mensaje': f'Fecha de nacimiento inválida: {error}'}), 400
+        
         vals = {
-            'nombre': datos.get('nombre'),
-            'apellidos': datos.get('apellidos'),
-            'dni': datos.get('dni'),
-            'fecha_nacimiento': datos.get('fecha_nacimiento'),
+            'nombre': nombre,
+            'apellidos': apellidos,
+            'dni': dni,
+            'fecha_nacimiento': fecha_nacimiento,
             'id_NFC': datos.get('id_NFC'),
-            'curso': datos.get('curso')
+            'curso': curso
         }
         
     datos_limpios = limpiar_datos(vals)
     
     try:
         nuevo_id = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'create', [datos_limpios])
-        return jsonify({'status': 'exito', 'mensaje': f'Registro creado con ID: {nuevo_id}'})
+        return jsonify({'status': 'exito', 'mensaje': f'Registro creado con ID: {nuevo_id}'}), 201
     except Exception as e:
         print(f"Error en Odoo al crear {tipo}: {e}")
-        return jsonify({'status': 'error', 'mensaje': str(e)})
+        error_msg = str(e)
+        # Mensajes de error más amigables
+        if 'nfc' in error_msg.lower() and 'unique' in error_msg.lower():
+            return jsonify({'status': 'error', 'mensaje': 'El código NFC ya está asignado a otra persona'}), 409
+        return jsonify({'status': 'error', 'mensaje': f'Error al guardar en Odoo: {error_msg}'}), 500
 
 @app.route('/api/actualizar_estado', methods=['POST'])
 def actualizar_estado():
