@@ -254,6 +254,73 @@ def actualizar_estado():
         print(f"Error actualizando estado en Odoo: {e}")
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
 
+@app.route('/api/actualizar', methods=['PUT', 'POST'])
+def actualizar_persona():
+    if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
+    datos = request.get_json()
+    
+    id_persona = datos.get('id')
+    tipo = datos.get('tipo', 'alumno')
+    
+    if not id_persona:
+        return jsonify({'status': 'error', 'mensaje': 'Se requiere el ID de la persona'}), 400
+    
+    modelo = 'acceso_ies.estudiante' if tipo == 'alumno' else 'acceso_ies.profesor'
+    
+    # Validaciones
+    nombre = datos.get('nombre', '').strip()
+    apellidos = datos.get('apellidos', '').strip()
+    dni = datos.get('dni', '').strip()
+    
+    # Validar nombre
+    if nombre and not validar_nombre(nombre):
+        return jsonify({'status': 'error', 'mensaje': 'El nombre solo puede contener letras'}), 400
+    
+    # Validar apellidos
+    if apellidos and not validar_nombre(apellidos):
+        return jsonify({'status': 'error', 'mensaje': 'Los apellidos solo pueden contener letras'}), 400
+    
+    # Validar DNI si se proporciona
+    if dni and not validar_dni(dni):
+        return jsonify({'status': 'error', 'mensaje': 'DNI inválido (formato: 12345678A)'}), 400
+    
+    # Validar fecha de nacimiento solo para alumnos
+    if tipo == 'alumno':
+        fecha_nacimiento = datos.get('fecha_nacimiento')
+        if fecha_nacimiento and not validar_fecha_nacimiento(fecha_nacimiento):
+            return jsonify({'status': 'error', 'mensaje': 'Fecha de nacimiento inválida (edad entre 10 y 80 años)'}), 400
+    
+    # Preparar datos para actualizar
+    valores = {}
+    if nombre:
+        valores['nombre'] = nombre
+    if apellidos:
+        valores['apellidos'] = apellidos
+    if dni:
+        valores['dni'] = dni
+    
+    if tipo == 'alumno':
+        if 'curso' in datos:
+            valores['curso'] = datos['curso']
+        if 'fecha_nacimiento' in datos:
+            valores['fecha_nacimiento'] = datos['fecha_nacimiento']
+    else:  # profesor
+        if 'departamento' in datos:
+            valores['departamento'] = datos['departamento']
+    
+    if 'id_NFC' in datos:
+        valores['id_NFC'] = datos.get('id_NFC', '')
+    
+    try:
+        ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'write', [[id_persona], valores])
+        return jsonify({'status': 'success', 'mensaje': f'{tipo.capitalize()} actualizado correctamente'})
+    except Exception as e:
+        print(f"Error actualizando {tipo} en Odoo: {e}")
+        error_msg = str(e)
+        if 'nfc' in error_msg.lower() and 'unique' in error_msg.lower():
+            return jsonify({'status': 'error', 'mensaje': 'El código NFC ya está asignado a otra persona'}), 409
+        return jsonify({'status': 'error', 'mensaje': f'Error al actualizar: {error_msg}'}), 500
+
 @app.route('/Borrar_Usuario', methods=['DELETE'])
 def borrar_usuario():
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión a Odoo'}), 500

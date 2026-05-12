@@ -165,39 +165,36 @@
                             <div class="header-tools" style="display: flex; gap: 10px;">
                                 <input type="text" id="search-alumnado" placeholder="Buscar alumno..." class="search-mini">
                                 <button class="btn-action" onclick="cargarAlumnado()">Actualizar</button>
-                                <button class="btn-action" style="background-color: #10b981;" onclick="cambiarSeccion('crear-alumno')">+ Nuevo Alumno</button>
+                                <button class="btn-action" style="background-color: #10b981;" onclick="resetearFormularioAlumno(); cambiarSeccion('crear-alumno')">+ Nuevo Alumno</button>
                             </div>
                         </div>
-                            <div class="table-container">
-                                <table class="modern-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 50px;">Foto</th>
-                                            <th>Nombre</th>
-                                            <th>Curso</th>
-                                            <th>DNI</th>
-                                            <th>NFC</th>
-                                            <th style="text-align: center;">Recreo</th>
-                                            <th style="text-align: center;">Salida</th>
-                                            <th style="text-align: center;">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="alumnado-body">
-                                        <tr>
-                                            <td colspan="8" style="text-align:center;">Cargando datos...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="table-container">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">Foto</th>
+                                        <th>Nombre</th>
+                                        <th>Curso</th>
+                                        <th>DNI</th>
+                                        <th>NFC</th>
+                                        <th style="text-align: center;">Recreo</th>
+                                        <th style="text-align: center;">Salida</th>
+                                        <th style="text-align: center;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="alumnado-body">
+                                    <tr>
+                                        <td colspan="8" style="text-align:center;">Cargando datos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </div>
-
-                <div id="sec-crear-alumno" class="seccion-app" style="display: none;">
+                </div> <div id="sec-crear-alumno" class="seccion-app" style="display: none;">
                     <div class="panel" style="max-width: 600px; margin: 0 auto;">
                         <div class="panel-header">
                             <h3>Registrar Nuevo Alumno</h3>
-                            <button class="btn-borrar" onclick="cambiarSeccion('alumnado', document.querySelectorAll('.nav-btn')[1])">Volver</button>
+                            <button class="btn-borrar" onclick="resetearFormularioAlumno(); cambiarSeccion('alumnado', document.querySelectorAll('.nav-btn')[1])">Volver</button>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Nombre *</label>
@@ -271,36 +268,33 @@
                                 <input type="text" id="search-profesorado" placeholder="Buscar profesor..."
                                     class="search-mini">
                                 <button class="btn-action" onclick="cargarProfesorado()">Actualizar</button>
-                                <button class="btn-action" style="background-color: #10b981;" onclick="cambiarSeccion('crear-profesor')">+ Nuevo Profesor</button>
+                                <button class="btn-action" style="background-color: #10b981;" onclick="resetearFormularioProfesor(); cambiarSeccion('crear-profesor')">+ Nuevo Profesor</button>
                             </div>
                         </div>
-                            <div class="table-container">
-                                <table class="modern-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Nombre</th>
-                                            <th>Departamento</th>
-                                            <th>DNI</th>
-                                            <th>NFC</th>
-                                            <th style="text-align: center;">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="profesorado-body">
-                                        <tr>
-                                            <td colspan="5" style="text-align:center;">Cargando datos...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="table-container">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Departamento</th>
+                                        <th>DNI</th>
+                                        <th>NFC</th>
+                                        <th style="text-align: center;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="profesorado-body">
+                                    <tr>
+                                        <td colspan="5" style="text-align:center;">Cargando datos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </div>
-
-                <div id="sec-crear-profesor" class="seccion-app" style="display: none;">
+                </div> <div id="sec-crear-profesor" class="seccion-app" style="display: none;">
                     <div class="panel" style="max-width: 600px; margin: 0 auto;">
                         <div class="panel-header">
                             <h3>Registrar Nuevo Profesor</h3>
-                            <button class="btn-borrar" onclick="cambiarSeccion('profesorado', document.querySelectorAll('.nav-btn')[2])">Volver</button>
+                            <button class="btn-borrar" onclick="resetearFormularioProfesor(); cambiarSeccion('profesorado', document.querySelectorAll('.nav-btn')[2])">Volver</button>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Nombre *</label>

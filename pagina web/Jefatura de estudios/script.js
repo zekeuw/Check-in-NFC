@@ -1,6 +1,11 @@
 const BASE_URL = 'http://10.102.7.221:5000';
 let miGraficoChartJs = null;
 
+// Variables para modo edición
+let modoEdicion = false;
+let idPersonaEditando = null;
+let tipoPersonaEditando = null;
+
 const CURSOS_MAP = {
     '1eso': '1º ESO', '2eso': '2º ESO', '3eso': '3º ESO', '4eso': '4º ESO',
     '1bach': '1º Bach', '2bach': '2º Bach',
@@ -307,6 +312,13 @@ async function cargarAlumnado() {
                 htmlNuevo += '<td style="text-align:center; vertical-align:middle;">' + switchRecreo + '</td>';
                 htmlNuevo += '<td style="text-align:center; vertical-align:middle;">' + switchSalida + '</td>';
                 
+                let btnModificarAl = `<button class="btn-modificar" onclick="modificarAlumno(${alumno.id})" title="Modificar datos">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>`;
+                
                 let btnBorrarAl = `<button class="btn-borrar" onclick="borrarPersona(${alumno.id}, 'alumno')" title="Dar de baja">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -315,7 +327,7 @@ async function cargarAlumnado() {
                         <line x1="14" y1="11" x2="14" y2="17"></line>
                     </svg>
                 </button>`;
-                htmlNuevo += `<td style="text-align:center; vertical-align:middle;">${btnBorrarAl}</td>`;
+                htmlNuevo += `<td style="text-align:center; vertical-align:middle;"><div style="display:flex; gap:5px; justify-content:center;">${btnModificarAl}${btnBorrarAl}</div></td>`;
                 
                 htmlNuevo += '</tr>';
             }
@@ -413,21 +425,32 @@ async function crearAlumnoDesdeWeb() {
     };
 
     try {
-        let respuesta = await fetch(BASE_URL + '/create', {
-            method: 'POST',
+        let url, metodo;
+        
+        if (modoEdicion) {
+            // Modo actualización
+            url = BASE_URL + '/api/actualizar';
+            metodo = 'PUT';
+            datosEnviados.id = idPersonaEditando;
+        } else {
+            // Modo creación
+            url = BASE_URL + '/create';
+            metodo = 'POST';
+        }
+        
+        let respuesta = await fetch(url, {
+            method: metodo,
             headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
             body: JSON.stringify(datosEnviados)
         });
         let json = await respuesta.json();
 
         if (json.status === 'exito' || json.status === 'success') {
-            feedback.innerHTML = '<span style="color:green;">Alumno guardado correctamente. Redirigiendo...</span>';
-            document.getElementById('add-al-nombre').value = '';
-            document.getElementById('add-al-apellidos').value = '';
-            document.getElementById('add-al-dni').value = '';
-            document.getElementById('add-al-nfc').value = '';
+            let mensaje = modoEdicion ? 'Alumno actualizado correctamente. Redirigiendo...' : 'Alumno guardado correctamente. Redirigiendo...';
+            feedback.innerHTML = '<span style="color:green;">' + mensaje + '</span>';
             
             setTimeout(() => {
+                resetearFormularioAlumno();
                 cargarAlumnado();
                 cambiarSeccion('alumnado', document.querySelectorAll('.nav-btn')[1]);
             }, 1500);
@@ -464,6 +487,13 @@ async function cargarProfesorado() {
                 htmlNuevo += '<td>' + dniTexto + '</td>';
                 htmlNuevo += '<td style="text-align:center;">' + etiquetaNfc + '</td>';
                 
+                let btnModificarPr = `<button class="btn-modificar" onclick="modificarProfesor(${profe.id})" title="Modificar datos">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>`;
+                
                 let btnBorrarPr = `<button class="btn-borrar" onclick="borrarPersona(${profe.id}, 'profesor')" title="Dar de baja">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -472,7 +502,7 @@ async function cargarProfesorado() {
                         <line x1="14" y1="11" x2="14" y2="17"></line>
                     </svg>
                 </button>`;
-                htmlNuevo += `<td style="text-align:center;">${btnBorrarPr}</td>`;
+                htmlNuevo += `<td style="text-align:center;"><div style="display:flex; gap:5px; justify-content:center;">${btnModificarPr}${btnBorrarPr}</div></td>`;
                 
                 htmlNuevo += '</tr>';
             }
@@ -526,21 +556,32 @@ async function crearProfesorDesdeWeb() {
     };
 
     try {
-        let respuesta = await fetch(BASE_URL + '/create', {
-            method: 'POST',
+        let url, metodo;
+        
+        if (modoEdicion) {
+            // Modo actualización
+            url = BASE_URL + '/api/actualizar';
+            metodo = 'PUT';
+            datosEnviados.id = idPersonaEditando;
+        } else {
+            // Modo creación
+            url = BASE_URL + '/create';
+            metodo = 'POST';
+        }
+        
+        let respuesta = await fetch(url, {
+            method: metodo,
             headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
             body: JSON.stringify(datosEnviados)
         });
         let json = await respuesta.json();
 
         if (json.status === 'exito' || json.status === 'success') {
-            feedback.innerHTML = '<span style="color:green;">Profesor guardado correctamente. Redirigiendo...</span>';
-            document.getElementById('add-pr-nombre').value = '';
-            document.getElementById('add-pr-apellidos').value = '';
-            document.getElementById('add-pr-dni').value = '';
-            document.getElementById('add-pr-nfc').value = '';
+            let mensaje = modoEdicion ? 'Profesor actualizado correctamente. Redirigiendo...' : 'Profesor guardado correctamente. Redirigiendo...';
+            feedback.innerHTML = '<span style="color:green;">' + mensaje + '</span>';
             
             setTimeout(() => {
+                resetearFormularioProfesor();
                 cargarProfesorado();
                 cambiarSeccion('profesorado', document.querySelectorAll('.nav-btn')[2]);
             }, 1500);
@@ -859,6 +900,120 @@ async function borrarPersona(idPersona, tipoPersona) {
         console.error(error);
         alert('Error de red al intentar borrar la persona.');
     }
+}
+
+async function modificarAlumno(idAlumno) {
+    try {
+        let respuesta = await fetch(BASE_URL + '/api/alumnado', {headers: {"x-api-key": "kartu_prosim"}});
+        let json = await respuesta.json();
+
+        if (json.status === 'success') {
+            let alumno = json.data.find(a => a.id === idAlumno);
+            if (alumno) {
+                // Activar modo edición
+                modoEdicion = true;
+                idPersonaEditando = idAlumno;
+                tipoPersonaEditando = 'alumno';
+
+                // Llenar formulario
+                document.getElementById('add-al-nombre').value = alumno.nombre || '';
+                document.getElementById('add-al-apellidos').value = alumno.apellidos || '';
+                document.getElementById('add-al-curso').value = alumno.curso || '';
+                document.getElementById('add-al-dni').value = alumno.dni || '';
+                document.getElementById('add-al-fecha').value = alumno.fecha_nacimiento || '';
+                document.getElementById('add-al-nfc').value = alumno.id_NFC || '';
+
+                // Cambiar texto del botón y título
+                let btnGuardar = document.querySelector('#sec-crear-alumno .btn-large');
+                if (btnGuardar) btnGuardar.innerText = 'ACTUALIZAR ALUMNO';
+                
+                let titulo = document.querySelector('#sec-crear-alumno h3');
+                if (titulo) titulo.innerText = 'Modificar Alumno';
+
+                // Ir a la sección de edición
+                cambiarSeccion('crear-alumno');
+            }
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Error al cargar datos del alumno');
+    }
+}
+
+async function modificarProfesor(idProfesor) {
+    try {
+        let respuesta = await fetch(BASE_URL + '/api/profesorado', {headers: {"x-api-key": "kartu_prosim"}});
+        let json = await respuesta.json();
+
+        if (json.status === 'success') {
+            let profesor = json.data.find(p => p.id === idProfesor);
+            if (profesor) {
+                // Activar modo edición
+                modoEdicion = true;
+                idPersonaEditando = idProfesor;
+                tipoPersonaEditando = 'profesor';
+
+                // Llenar formulario
+                document.getElementById('add-pr-nombre').value = profesor.nombre || '';
+                document.getElementById('add-pr-apellidos').value = profesor.apellidos || '';
+                document.getElementById('add-pr-departamento').value = profesor.departamento || '';
+                document.getElementById('add-pr-dni').value = profesor.dni || '';
+                document.getElementById('add-pr-nfc').value = profesor.id_NFC || '';
+
+                // Cambiar texto del botón y título
+                let btnGuardar = document.querySelector('#sec-crear-profesor .btn-large');
+                if (btnGuardar) btnGuardar.innerText = 'ACTUALIZAR PROFESOR';
+                
+                let titulo = document.querySelector('#sec-crear-profesor h3');
+                if (titulo) titulo.innerText = 'Modificar Profesor';
+
+                // Ir a la sección de edición
+                cambiarSeccion('crear-profesor');
+            }
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Error al cargar datos del profesor');
+    }
+}
+
+function resetearFormularioAlumno() {
+    modoEdicion = false;
+    idPersonaEditando = null;
+    tipoPersonaEditando = null;
+    
+    document.getElementById('add-al-nombre').value = '';
+    document.getElementById('add-al-apellidos').value = '';
+    document.getElementById('add-al-curso').value = '';
+    document.getElementById('add-al-dni').value = '';
+    document.getElementById('add-al-fecha').value = '';
+    document.getElementById('add-al-nfc').value = '';
+    document.getElementById('add-al-feedback').innerHTML = '';
+    
+    let btnGuardar = document.querySelector('#sec-crear-alumno .btn-large');
+    if (btnGuardar) btnGuardar.innerText = 'REGISTRAR EN ODOO';
+    
+    let titulo = document.querySelector('#sec-crear-alumno h3');
+    if (titulo) titulo.innerText = 'Registrar Nuevo Alumno';
+}
+
+function resetearFormularioProfesor() {
+    modoEdicion = false;
+    idPersonaEditando = null;
+    tipoPersonaEditando = null;
+    
+    document.getElementById('add-pr-nombre').value = '';
+    document.getElementById('add-pr-apellidos').value = '';
+    document.getElementById('add-pr-departamento').value = '';
+    document.getElementById('add-pr-dni').value = '';
+    document.getElementById('add-pr-nfc').value = '';
+    document.getElementById('add-pr-feedback').innerHTML = '';
+    
+    let btnGuardar = document.querySelector('#sec-crear-profesor .btn-large');
+    if (btnGuardar) btnGuardar.innerText = 'REGISTRAR EN ODOO';
+    
+    let titulo = document.querySelector('#sec-crear-profesor h3');
+    if (titulo) titulo.innerText = 'Registrar Nuevo Profesor';
 }
 
 aplicarFiltroBusqueda('search-input', 'odoo-table-body');

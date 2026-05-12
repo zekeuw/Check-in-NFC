@@ -544,3 +544,39 @@ input:checked + .slider:before {
 .btn-borrar:active {
     transform: scale(0.95);
 }
+
+/* --- BOTÓN MODIFICAR --- */
+.btn-modificar {
+    background-color: #f0f9ff;
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-modificar svg {
+    stroke: currentColor;
+    transition: stroke 0.2s ease;
+}
+
+.btn-modificar:hover {
+    background-color: #0284c7;
+    color: white;
+    border-color: #0369a1;
+    transform: scale(1.05);
+}
+
+.btn-modificar:hover svg {
+    stroke: white;
+}
+
+.btn-modificar:active {
+    transform: scale(0.95);
+}
