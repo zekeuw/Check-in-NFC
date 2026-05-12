@@ -47,11 +47,12 @@ function cambiarSeccion(idSeccion, botonClicado) {
 
     document.getElementById('sec-' + idSeccion).style.display = 'block';
 
+    let todosLosBotones = document.getElementsByClassName('nav-btn');
+    for (let i = 0; i < todosLosBotones.length; i++) {
+        todosLosBotones[i].classList.remove('active');
+    }
+
     if (botonClicado) {
-        let todosLosBotones = document.getElementsByClassName('nav-btn');
-        for (let i = 0; i < todosLosBotones.length; i++) {
-            todosLosBotones[i].classList.remove('active');
-        }
         botonClicado.classList.add('active');
     }
 
@@ -363,8 +364,44 @@ async function crearAlumnoDesdeWeb() {
     let nfc = document.getElementById('add-al-nfc').value.trim();
     let feedback = document.getElementById('add-al-feedback');
 
-    if (nombre === '' || apellidos === '' || curso === '') {
-        feedback.innerHTML = '<span style="color:red;">Faltan datos obligatorios</span>';
+    // Validaciones en el cliente
+    if (nombre === '' || apellidos === '' || curso === '' || fecha === '') {
+        feedback.innerHTML = '<span style="color:red;">⚠ Nombre, Apellidos, Curso y Fecha de Nacimiento son obligatorios</span>';
+        return;
+    }
+
+    // Validar que nombre no contenga números
+    if (/\d/.test(nombre)) {
+        feedback.innerHTML = '<span style="color:red;">⚠ El nombre no puede contener números</span>';
+        return;
+    }
+
+    // Validar que apellidos no contengan números
+    if (/\d/.test(apellidos)) {
+        feedback.innerHTML = '<span style="color:red;">⚠ Los apellidos no pueden contener números</span>';
+        return;
+    }
+
+    // Validar DNI si se proporciona
+    if (dni !== '') {
+        let dniPattern = /^\d{8}[A-Z]$/i;
+        if (!dniPattern.test(dni)) {
+            feedback.innerHTML = '<span style="color:red;">⚠ El DNI debe tener 8 dígitos y 1 letra (ej: 12345678A)</span>';
+            return;
+        }
+    }
+
+    // Validar fecha de nacimiento
+    let fechaNac = new Date(fecha);
+    let hoy = new Date();
+    if (fechaNac > hoy) {
+        feedback.innerHTML = '<span style="color:red;">⚠ La fecha de nacimiento no puede ser futura</span>';
+        return;
+    }
+
+    let edad = hoy.getFullYear() - fechaNac.getFullYear();
+    if (edad < 10 || edad > 80) {
+        feedback.innerHTML = '<span style="color:red;">⚠ La edad debe estar entre 10 y 80 años</span>';
         return;
     }
 
@@ -391,7 +428,7 @@ async function crearAlumnoDesdeWeb() {
             document.getElementById('add-al-nfc').value = '';
             
             setTimeout(() => {
-                feedback.innerHTML = '';
+                cargarAlumnado();
                 cambiarSeccion('alumnado', document.querySelectorAll('.nav-btn')[1]);
             }, 1500);
             
@@ -454,9 +491,31 @@ async function crearProfesorDesdeWeb() {
     let nfc = document.getElementById('add-pr-nfc').value.trim();
     let feedback = document.getElementById('add-pr-feedback');
 
-    if (nombre === '' || departamento === '') {
-        feedback.innerHTML = '<span style="color:red;">Nombre y Departamento son obligatorios</span>';
+    // Validaciones en el cliente
+    if (nombre === '' || apellidos === '' || departamento === '') {
+        feedback.innerHTML = '<span style="color:red;">⚠ Nombre, Apellidos y Departamento son obligatorios</span>';
         return;
+    }
+
+    // Validar que nombre no contenga números
+    if (/\d/.test(nombre)) {
+        feedback.innerHTML = '<span style="color:red;">⚠ El nombre no puede contener números</span>';
+        return;
+    }
+
+    // Validar que apellidos no contengan números
+    if (/\d/.test(apellidos)) {
+        feedback.innerHTML = '<span style="color:red;">⚠ Los apellidos no pueden contener números</span>';
+        return;
+    }
+
+    // Validar DNI si se proporciona
+    if (dni !== '') {
+        let dniPattern = /^\d{8}[A-Z]$/i;
+        if (!dniPattern.test(dni)) {
+            feedback.innerHTML = '<span style="color:red;">⚠ El DNI debe tener 8 dígitos y 1 letra (ej: 12345678A)</span>';
+            return;
+        }
     }
 
     feedback.innerHTML = '<span style="color:blue;">Enviando datos...</span>';
@@ -482,7 +541,7 @@ async function crearProfesorDesdeWeb() {
             document.getElementById('add-pr-nfc').value = '';
             
             setTimeout(() => {
-                feedback.innerHTML = ''; 
+                cargarProfesorado();
                 cambiarSeccion('profesorado', document.querySelectorAll('.nav-btn')[2]);
             }, 1500);
             

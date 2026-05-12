@@ -190,21 +190,25 @@
                             </table>
                         </div>
                     </div>
-                </div>
-
-                <div id="sec-crear-alumno" class="seccion-app" style="display: none;">
+                </div> <div id="sec-crear-alumno" class="seccion-app" style="display: none;">
                     <div class="panel" style="max-width: 600px; margin: 0 auto;">
                         <div class="panel-header">
                             <h3>Registrar Nuevo Alumno</h3>
                             <button class="btn-borrar" onclick="cambiarSeccion('alumnado', document.querySelectorAll('.nav-btn')[1])">Volver</button>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" id="add-al-nombre" class="form-input">
+                            <label class="form-label">Nombre *</label>
+                            <input type="text" id="add-al-nombre" class="form-input" 
+                                   pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-']+" 
+                                   title="Solo letras, espacios, guiones y apóstrofes" 
+                                   required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Apellidos</label>
-                            <input type="text" id="add-al-apellidos" class="form-input">
+                            <label class="form-label">Apellidos *</label>
+                            <input type="text" id="add-al-apellidos" class="form-input" 
+                                   pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-']+" 
+                                   title="Solo letras, espacios, guiones y apóstrofes" 
+                                   required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Curso / Grupo</label>
@@ -236,11 +240,15 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">DNI / Documento</label>
-                            <input type="text" id="add-al-dni" class="form-input">
+                            <input type="text" id="add-al-dni" class="form-input" 
+                                   pattern="\d{8}[A-Za-z]" 
+                                   title="8 dígitos seguidos de una letra (ej: 12345678A)" 
+                                   maxlength="9" 
+                                   placeholder="12345678A">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Fecha de Nacimiento</label>
-                            <input type="date" id="add-al-fecha" class="form-input">
+                            <label class="form-label">Fecha de Nacimiento *</label>
+                            <input type="date" id="add-al-fecha" class="form-input" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Código NFC (Opcional)</label>
@@ -257,7 +265,8 @@
                         <div class="panel-header">
                             <h3>Directorio de Profesores</h3>
                             <div class="header-tools" style="display: flex; gap: 10px;">
-                                <input type="text" id="search-profesorado" placeholder="Buscar profesor..." class="search-mini">
+                                <input type="text" id="search-profesorado" placeholder="Buscar profesor..."
+                                    class="search-mini">
                                 <button class="btn-action" onclick="cargarProfesorado()">Actualizar</button>
                                 <button class="btn-action" style="background-color: #10b981;" onclick="cambiarSeccion('crear-profesor')">+ Nuevo Profesor</button>
                             </div>
@@ -281,21 +290,25 @@
                             </table>
                         </div>
                     </div>
-                </div>
-
-                <div id="sec-crear-profesor" class="seccion-app" style="display: none;">
+                </div> <div id="sec-crear-profesor" class="seccion-app" style="display: none;">
                     <div class="panel" style="max-width: 600px; margin: 0 auto;">
                         <div class="panel-header">
                             <h3>Registrar Nuevo Profesor</h3>
                             <button class="btn-borrar" onclick="cambiarSeccion('profesorado', document.querySelectorAll('.nav-btn')[2])">Volver</button>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" id="add-pr-nombre" class="form-input">
+                            <label class="form-label">Nombre *</label>
+                            <input type="text" id="add-pr-nombre" class="form-input" 
+                                   pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-']+" 
+                                   title="Solo letras, espacios, guiones y apóstrofes" 
+                                   required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Apellidos</label>
-                            <input type="text" id="add-pr-apellidos" class="form-input">
+                            <label class="form-label">Apellidos *</label>
+                            <input type="text" id="add-pr-apellidos" class="form-input" 
+                                   pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-']+" 
+                                   title="Solo letras, espacios, guiones y apóstrofes" 
+                                   required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Departamento</label>
@@ -313,7 +326,11 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">DNI / Documento</label>
-                            <input type="text" id="add-pr-dni" class="form-input">
+                            <input type="text" id="add-pr-dni" class="form-input" 
+                                   pattern="\d{8}[A-Za-z]" 
+                                   title="8 dígitos seguidos de una letra (ej: 12345678A)" 
+                                   maxlength="9" 
+                                   placeholder="12345678A">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Código NFC (Opcional)</label>
