@@ -1,5 +1,8 @@
-const BASE_URL = 'http://10.102.7.221:5000';
+// --- VARIABLES GLOBALES Y CONFIGURACIÓN ---
+let BASE_URL = localStorage.getItem('sjr_base_url') || 'http://10.102.7.221:5000';
+let API_KEY = localStorage.getItem('sjr_api_key') || 'kartu_prosim';
 let miGraficoChartJs = null;
+let intervalDashboard = null;
 
 const CURSOS_MAP = {
     '1eso': '1º ESO', '2eso': '2º ESO', '3eso': '3º ESO', '4eso': '4º ESO',
@@ -14,6 +17,98 @@ const DEPT_MAP = {
     'fisica_quimica': 'Física y Química', 'educacion_fisica': 'Ed. Física'
 };
 
+// --- AUTENTICACIÓN Y SESIÓN ---
+function realizarLogin(e) {
+    e.preventDefault();
+    let user = document.getElementById('login-user').value;
+    let pass = document.getElementById('login-pass').value;
+    
+    // Login simulado (puedes conectarlo a un endpoint si lo necesitas)
+    if(user === 'admin' && pass === 'admin') {
+        localStorage.setItem('sjr_logged_in', 'true');
+        document.getElementById('login-wrapper').style.display = 'none';
+        document.getElementById('app-wrapper').style.display = 'flex';
+        iniciarApp();
+    } else {
+        document.getElementById('login-error').style.display = 'block';
+    }
+}
+
+function cerrarSesion() {
+    localStorage.removeItem('sjr_logged_in');
+    document.getElementById('app-wrapper').style.display = 'none';
+    document.getElementById('login-wrapper').style.display = 'flex';
+    document.getElementById('login-pass').value = '';
+    
+    // Detener peticiones en segundo plano
+    if(intervalDashboard) clearInterval(intervalDashboard);
+}
+
+function verificarSesionInicial() {
+    if(localStorage.getItem('sjr_logged_in') === 'true') {
+        document.getElementById('login-wrapper').style.display = 'none';
+        document.getElementById('app-wrapper').style.display = 'flex';
+        iniciarApp();
+    }
+}
+
+function iniciarApp() {
+    cargarValoresConfiguracion();
+    cargarDashboard();
+    
+    // Refrescar cada 15 segundos
+    intervalDashboard = setInterval(() => {
+        if (!document.hidden) cargarDashboard();
+    }, 15000);
+}
+
+// --- VISIBILIDAD DE CONTRASEÑAS (NUEVO) ---
+function togglePasswordVisibility(inputId, iconShowId, iconHideId) {
+    let passInput = document.getElementById(inputId);
+    let eyeShow = document.getElementById(iconShowId);
+    let eyeHide = document.getElementById(iconHideId);
+
+    if (passInput.type === 'password') {
+        passInput.type = 'text';
+        eyeShow.style.display = 'none';
+        eyeHide.style.display = 'block';
+    } else {
+        passInput.type = 'password';
+        eyeShow.style.display = 'block';
+        eyeHide.style.display = 'none';
+    }
+}
+
+// --- PANEL DE CONFIGURACIÓN ---
+function cargarValoresConfiguracion() {
+    document.getElementById('config-url').value = BASE_URL;
+    document.getElementById('config-apikey').value = API_KEY;
+}
+
+function guardarConfiguracion() {
+    let nuevaUrl = document.getElementById('config-url').value.trim();
+    let nuevaKey = document.getElementById('config-apikey').value.trim();
+    let feedback = document.getElementById('config-feedback');
+
+    if (nuevaUrl === '') {
+        feedback.innerHTML = '<span style="color:red;">La URL no puede estar vacía.</span>';
+        return;
+    }
+
+    BASE_URL = nuevaUrl;
+    API_KEY = nuevaKey;
+    localStorage.setItem('sjr_base_url', BASE_URL);
+    localStorage.setItem('sjr_api_key', API_KEY);
+
+    feedback.innerHTML = '<span style="color:green;">Configuración guardada correctamente.</span>';
+    
+    setTimeout(() => {
+        feedback.innerHTML = '';
+        cargarDashboard();
+    }, 2000);
+}
+
+// --- UTILIDADES ---
 function formatCurso(clave) {
     if (CURSOS_MAP[clave]) {
         return CURSOS_MAP[clave];
@@ -61,6 +156,7 @@ function cambiarSeccion(idSeccion, botonClicado) {
     if (idSeccion === 'profesorado') cargarProfesorado();
     if (idSeccion === 'nfc') cargarSelectNFC();
     if (idSeccion === 'asistencia') cargarAsistencia();
+    if (idSeccion === 'configuracion') cargarValoresConfiguracion();
 
     let menu = document.getElementById('sidebar');
     if (menu.classList.contains('show-menu')) {
@@ -69,22 +165,22 @@ function cambiarSeccion(idSeccion, botonClicado) {
 }
 
 function actualizarEstadoConexion(estaConectado) {
-    let contenedorSubtitulo = document.querySelector('.admin-subtitle');
+    let contenedoresSubtitulo = document.querySelectorAll('.admin-subtitle');
     let textoDashboard = document.getElementById('stat-sync-percent');
 
-    if (estaConectado) {
-        if (contenedorSubtitulo) {
-            contenedorSubtitulo.innerHTML = '<span id="sync-status" class="status-dot" style="background-color: #10b981;"></span> Conectado a Odoo';
+    contenedoresSubtitulo.forEach(contenedor => {
+        if (estaConectado) {
+            contenedor.innerHTML = '<span id="sync-status" class="status-dot" style="background-color: #10b981;"></span> Conectado a Odoo';
+        } else {
+            contenedor.innerHTML = '<span id="sync-status" class="status-dot" style="background-color: #ef4444;"></span> Desconectado';
         }
-        if (textoDashboard) {
+    });
+
+    if (textoDashboard) {
+        if (estaConectado) {
             textoDashboard.innerText = 'OK';
             textoDashboard.style.color = '#10b981';
-        }
-    } else {
-        if (contenedorSubtitulo) {
-            contenedorSubtitulo.innerHTML = '<span id="sync-status" class="status-dot" style="background-color: #ef4444;"></span> Desconectado';
-        }
-        if (textoDashboard) {
+        } else {
             textoDashboard.innerText = 'ERROR';
             textoDashboard.style.color = '#ef4444';
         }
@@ -94,7 +190,7 @@ function actualizarEstadoConexion(estaConectado) {
 async function cargarDashboard() {
     try {
         let tipoSeleccionado = document.getElementById('filtro-dashboard-tipo').value;
-        let respuesta = await fetch(BASE_URL + '/api/dashboard?tipo=' + tipoSeleccionado, {headers: {"x-api-key": "kartu_prosim"}});
+        let respuesta = await fetch(BASE_URL + '/api/dashboard?tipo=' + tipoSeleccionado, {headers: {"x-api-key": API_KEY}});
 
         if (!respuesta.ok) {
             throw new Error("Fallo en la peticion al servidor");
@@ -171,7 +267,7 @@ async function cargarDashboard() {
             document.getElementById('current-date').innerText = datos.stats.fecha || '--';
         }
 
-        let respuestaAsis = await fetch(BASE_URL + '/api/asistencia?filtro=' + tipoSeleccionado, {headers: {"x-api-key": "kartu_prosim"}});
+        let respuestaAsis = await fetch(BASE_URL + '/api/asistencia?filtro=' + tipoSeleccionado, {headers: {"x-api-key": API_KEY}});
         let jsonAsistencia = await respuestaAsis.json();
 
         let conteoSemana = [0, 0, 0, 0, 0];
@@ -255,7 +351,7 @@ async function cargarDashboard() {
 async function cargarAlumnado() {
     let cuerpoTabla = document.getElementById('alumnado-body');
     try {
-        let respuesta = await fetch(BASE_URL + '/api/alumnado', {headers: {"x-api-key": "kartu_prosim"}});
+        let respuesta = await fetch(BASE_URL + '/api/alumnado', {headers: {"x-api-key": API_KEY}});
         let json = await respuesta.json();
 
         if (json.status === 'success') {
@@ -331,7 +427,7 @@ async function cambiarEstadoPersona(idPersona, campoCambiar, nuevoValor, tipoPer
     try {
         let respuesta = await fetch(BASE_URL + '/api/actualizar_estado', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
+            headers: { 'Content-Type': 'application/json', "x-api-key": API_KEY },
             body: JSON.stringify({
                 id: idPersona,
                 tipo: tipoPersona,
@@ -364,25 +460,21 @@ async function crearAlumnoDesdeWeb() {
     let nfc = document.getElementById('add-al-nfc').value.trim();
     let feedback = document.getElementById('add-al-feedback');
 
-    // Validaciones en el cliente
     if (nombre === '' || apellidos === '' || curso === '' || fecha === '') {
         feedback.innerHTML = '<span style="color:red;">⚠ Nombre, Apellidos, Curso y Fecha de Nacimiento son obligatorios</span>';
         return;
     }
 
-    // Validar que nombre no contenga números
     if (/\d/.test(nombre)) {
         feedback.innerHTML = '<span style="color:red;">⚠ El nombre no puede contener números</span>';
         return;
     }
 
-    // Validar que apellidos no contengan números
     if (/\d/.test(apellidos)) {
         feedback.innerHTML = '<span style="color:red;">⚠ Los apellidos no pueden contener números</span>';
         return;
     }
 
-    // Validar DNI si se proporciona
     if (dni !== '') {
         let dniPattern = /^\d{8}[A-Z]$/i;
         if (!dniPattern.test(dni)) {
@@ -391,7 +483,6 @@ async function crearAlumnoDesdeWeb() {
         }
     }
 
-    // Validar fecha de nacimiento
     let fechaNac = new Date(fecha);
     let hoy = new Date();
     if (fechaNac > hoy) {
@@ -415,7 +506,7 @@ async function crearAlumnoDesdeWeb() {
     try {
         let respuesta = await fetch(BASE_URL + '/create', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
+            headers: { 'Content-Type': 'application/json', "x-api-key": API_KEY },
             body: JSON.stringify(datosEnviados)
         });
         let json = await respuesta.json();
@@ -443,7 +534,7 @@ async function crearAlumnoDesdeWeb() {
 async function cargarProfesorado() {
     let cuerpoTabla = document.getElementById('profesorado-body');
     try {
-        let respuesta = await fetch(BASE_URL + '/api/profesorado', {headers: {"x-api-key": "kartu_prosim"}});
+        let respuesta = await fetch(BASE_URL + '/api/profesorado', {headers: {"x-api-key": API_KEY}});
         let json = await respuesta.json();
 
         if (json.status === 'success') {
@@ -491,25 +582,21 @@ async function crearProfesorDesdeWeb() {
     let nfc = document.getElementById('add-pr-nfc').value.trim();
     let feedback = document.getElementById('add-pr-feedback');
 
-    // Validaciones en el cliente
     if (nombre === '' || apellidos === '' || departamento === '') {
         feedback.innerHTML = '<span style="color:red;">⚠ Nombre, Apellidos y Departamento son obligatorios</span>';
         return;
     }
 
-    // Validar que nombre no contenga números
     if (/\d/.test(nombre)) {
         feedback.innerHTML = '<span style="color:red;">⚠ El nombre no puede contener números</span>';
         return;
     }
 
-    // Validar que apellidos no contengan números
     if (/\d/.test(apellidos)) {
         feedback.innerHTML = '<span style="color:red;">⚠ Los apellidos no pueden contener números</span>';
         return;
     }
 
-    // Validar DNI si se proporciona
     if (dni !== '') {
         let dniPattern = /^\d{8}[A-Z]$/i;
         if (!dniPattern.test(dni)) {
@@ -528,7 +615,7 @@ async function crearProfesorDesdeWeb() {
     try {
         let respuesta = await fetch(BASE_URL + '/create', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
+            headers: { 'Content-Type': 'application/json', "x-api-key": API_KEY },
             body: JSON.stringify(datosEnviados)
         });
         let json = await respuesta.json();
@@ -566,7 +653,7 @@ async function cargarAsistencia() {
             url += '&fecha=' + fechaSeleccionada;
         }
 
-        let respuesta = await fetch(url, {headers: {"x-api-key": "kartu_prosim"}});
+        let respuesta = await fetch(url, {headers: {"x-api-key": API_KEY}});
         let json = await respuesta.json();
 
         if (json.status === 'success') {
@@ -627,7 +714,7 @@ async function cargarSelectNFC() {
             ruta = '/api/profesorado';
         }
 
-        let respuesta = await fetch(BASE_URL + ruta, {headers: {"x-api-key": "kartu_prosim"}});
+        let respuesta = await fetch(BASE_URL + ruta, {headers: {"x-api-key": API_KEY}});
         let json = await respuesta.json();
 
         if (json.status === 'success') {
@@ -671,7 +758,7 @@ async function guardarVinculacion() {
     try {
         let respuesta = await fetch(BASE_URL + '/api/vincular_nfc', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
+            headers: { 'Content-Type': 'application/json', "x-api-key": API_KEY },
             body: JSON.stringify(datosEnviados)
         });
         let json = await respuesta.json();
@@ -785,7 +872,7 @@ async function procesarImportacionCSV(inputElement) {
         try {
             let respuesta = await fetch(BASE_URL + '/api/importar_asistencia', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', "x-api-key": "kartu_prosim" },
+                headers: { 'Content-Type': 'application/json', "x-api-key": API_KEY },
                 body: JSON.stringify({ datos: incidenciasAImportar })
             });
 
@@ -835,7 +922,7 @@ async function borrarPersona(idPersona, tipoPersona) {
             method: 'DELETE', 
             headers: { 
                 'Content-Type': 'application/json',
-                'x-api-key': 'kartu_prosim'
+                'x-api-key': API_KEY
             },
             body: JSON.stringify({
                 id: idPersona,
@@ -861,6 +948,7 @@ async function borrarPersona(idPersona, tipoPersona) {
     }
 }
 
+// Eventos y Configuración Inicial de la UI
 aplicarFiltroBusqueda('search-input', 'odoo-table-body');
 aplicarFiltroBusqueda('search-alumnado', 'alumnado-body');
 aplicarFiltroBusqueda('search-profesorado', 'profesorado-body');
@@ -872,10 +960,7 @@ document.getElementById('input-nfc-code').addEventListener('keypress', function 
     }
 });
 
+// Arranca validando si el usuario ya hizo login
 window.addEventListener('DOMContentLoaded', () => {
-    cargarDashboard();
+    verificarSesionInicial();
 });
-
-setInterval(() => {
-    if (!document.hidden) cargarDashboard();
-}, 15000);
