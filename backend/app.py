@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import xmlrpc.client
 from datetime import datetime, timedelta
 import http.client
 import re
+import os
 
 URL = 'http://localhost:8072'
 DB = 'Servidor_proyecto'
@@ -14,6 +15,9 @@ SECRET_KEY = "kartu_prosim"
 
 app = Flask(__name__)
 CORS(app)
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WEB_DIR = os.path.join(BASE_DIR, 'pagina web', 'Jefatura de estudios')
 
 uid = None
 models = None
@@ -29,7 +33,6 @@ def obtener_conexion_odoo():
             if uid:
                 print(f"✓ Conexión exitosa con Odoo! UID: {uid}")
         
-        # Crear nueva instancia de models para evitar problemas de conexión reutilizada
         models = xmlrpc.client.ServerProxy(f'{URL}/xmlrpc/2/object', allow_none=True)
         return True
     except Exception as e:
@@ -40,13 +43,17 @@ def obtener_conexion_odoo():
 def asegurar_conexion_odoo():
     if request.method == 'OPTIONS':
         return
+    
+    # No pedir la api key si lo que estas haciendo es pedir la pagina web o sus recursos estaticos
+    rutas_publicas = ['/', '/script.js', '/style.css']
+    if request.path in rutas_publicas:
+        return
 
     clave_recibida = request.headers.get('x-api-key')
     
     if clave_recibida != SECRET_KEY:
         return jsonify({'status': 'error', 'mensaje': 'Acceso denegado. API Key inválida o faltante.'}), 401
     
-    # Asegurar conexión al inicio de cada request
     if not uid:
         obtener_conexion_odoo()
 
@@ -902,6 +909,21 @@ def importar_asistencia():
             mensaje += f" ({len(errores)} fallaron. Mira la consola de Python)."
         
     return jsonify({'status': status, 'mensaje': mensaje, 'exitosos': exitosos, 'errores': errores})
+
+@app.route('/')
+def index():
+    """Sirve la página principal"""
+    return send_from_directory(WEB_DIR, 'pagina_web.html')
+
+@app.route('/script.js')
+def serve_script():
+    """Sirve el archivo JavaScript"""
+    return send_from_directory(WEB_DIR, 'script.js')
+
+@app.route('/style.css')
+def serve_style():
+    """Sirve el archivo CSS"""
+    return send_from_directory(WEB_DIR, 'style.css')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)

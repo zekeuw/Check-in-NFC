@@ -1,4 +1,4 @@
-const BASE_URL = 'http://10.102.7.221:5000';
+const BASE_URL = window.location.protocol === 'file:' ? 'http://10.102.7.221:5000' : window.location.origin;
 let miGraficoChartJs = null;
 
 // Variables para modo edición
