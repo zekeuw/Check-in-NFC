@@ -279,6 +279,18 @@ body {
     gap: 20px;
 }
 
+.charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+.bottom-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
 .panel {
     background-color: #ffffff;
     border-radius: 6px;
@@ -335,9 +347,56 @@ body {
     transition: color 0.3s ease;
 }
 
-/* --- TABLAS --- */
+/* --- FEED DE ACTIVIDAD --- */
+.activity-feed {
+    display: flex;
+    flex-direction: column;
+}
+
+.activity-item {
+    padding: 12px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.act-time {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: bold;
+    min-width: 45px;
+    text-align: right;
+}
+
+.act-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.act-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.act-type {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* --- TABLAS Y SCROLL FIJO --- */
 .table-container {
     overflow-x: auto;
+    overflow-y: auto; 
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
 }
 
 .modern-table {
@@ -354,6 +413,10 @@ body {
     text-transform: uppercase;
     font-weight: 600;
     border-bottom: 2px solid #cbd5e1;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);
 }
 
 .modern-table td {
@@ -380,6 +443,16 @@ body {
 
 .alert-row td {
     background-color: #fff1f2;
+}
+
+th.sortable {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+th.sortable:hover {
+    background-color: #e2e8f0;
+    color: #1e40af;
 }
 
 /* --- FORMULARIOS Y BOTONES --- */
@@ -420,7 +493,7 @@ body {
     border-color: #1e40af;
 }
 
-/* --- VISIBILIDAD DE CONTRASEÑAS (NUEVO) --- */
+/* --- VISIBILIDAD DE CONTRASEÑAS --- */
 .password-input-wrapper {
     position: relative;
     display: flex;
@@ -428,7 +501,7 @@ body {
 }
 
 .password-input-wrapper .form-input {
-    padding-right: 40px; /* Espacio para que el texto no pise el botón */
+    padding-right: 40px; 
 }
 
 .btn-show-pass {
@@ -596,7 +669,50 @@ input:checked + .slider:before {
     transform: scale(0.95);
 }
 
+/* --- BOTÓN EDITAR --- */
+.btn-editar {
+    background-color: #fffbeb;
+    color: #f59e0b;
+    border: 1px solid #fde68a;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+}
+
+.btn-editar svg {
+    stroke: currentColor;
+    transition: stroke 0.2s ease;
+}
+
+.btn-editar:hover {
+    background-color: #f59e0b;
+    color: white;
+    border-color: #d97706;
+    transform: scale(1.05);
+}
+
+.btn-editar:hover svg {
+    stroke: white;
+}
+
+.btn-editar:active {
+    transform: scale(0.95);
+}
+
 /* --- RESPONSIVIDAD --- */
+@media (max-width: 1024px) {
+    .charts-grid, .bottom-grid {
+        grid-template-columns: 1fr; 
+    }
+}
+
 @media (max-width: 768px) {
     .sidebar {
         position: fixed;
@@ -621,7 +737,7 @@ input:checked + .slider:before {
     .grid-stats {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .dashboard-footer {
         flex-direction: column;
         gap: 10px;

@@ -1,7 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import xmlrpc.client
 from datetime import datetime, timedelta
+import http.client
+import re
+import os
 
 URL = 'http://localhost:8072'
 DB = 'Servidor_proyecto'
@@ -13,13 +16,37 @@ SECRET_KEY = "kartu_prosim"
 app = Flask(__name__)
 CORS(app)
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WEB_DIR = os.path.join(BASE_DIR, 'pagina web', 'Jefatura de estudios')
+
 uid = None
 models = None
 
+def obtener_conexion_odoo():
+    """Obtiene o crea una nueva conexión a Odoo"""
+    global uid, models
+    
+    try:
+        if not uid:
+            common = xmlrpc.client.ServerProxy(f'{URL}/xmlrpc/2/common')
+            uid = common.authenticate(DB, USERNAME, PASSWORD, {})
+            if uid:
+                print(f"✓ Conexión exitosa con Odoo! UID: {uid}")
+        
+        models = xmlrpc.client.ServerProxy(f'{URL}/xmlrpc/2/object', allow_none=True)
+        return True
+    except Exception as e:
+        print(f"Error conectando con Odoo: {e}")
+        return False
+
 @app.before_request
 def asegurar_conexion_odoo():
-
     if request.method == 'OPTIONS':
+        return
+    
+    # No pedir la api key si lo que estas haciendo es pedir la pagina web o sus recursos estaticos
+    rutas_publicas = ['/', '/script.js', '/style.css']
+    if request.path in rutas_publicas:
         return
 
     clave_recibida = request.headers.get('x-api-key')
@@ -27,21 +54,29 @@ def asegurar_conexion_odoo():
     if clave_recibida != SECRET_KEY:
         return jsonify({'status': 'error', 'mensaje': 'Acceso denegado. API Key inválida o faltante.'}), 401
     
+    if not uid:
+        obtener_conexion_odoo()
 
-    global uid, models
+def ejecutar_odoo_kw(*args, **kwargs):
+    """Wrapper para ejecutar comandos Odoo con reconexión automática en caso de error"""
+    global models
     
-    if uid:
-        return
-        
     try:
-        common = xmlrpc.client.ServerProxy(f'{URL}/xmlrpc/2/common')
-        nuevo_uid = common.authenticate(DB, USERNAME, PASSWORD, {})
-        if nuevo_uid:
-            uid = nuevo_uid
-            models = xmlrpc.client.ServerProxy(f'{URL}/xmlrpc/2/object', allow_none=True)
-            print(f"¡Conexión/Reconexión exitosa con Odoo! UID: {uid}")
-    except Exception:
-        pass
+        # Asegurar que tenemos una conexión fresca
+        if not models:
+            obtener_conexion_odoo()
+        return models.execute_kw(*args, **kwargs)
+    except (http.client.ResponseNotReady, http.client.CannotSendRequest, ConnectionError, Exception) as e:
+        error_str = str(e).lower()
+        # Solo reconectar si es un error de conexión
+        if 'idle' in error_str or 'request-sent' in error_str or 'cannot send request' in error_str:
+            print(f"⚠ Reconectando por error de conexión: {e}")
+            # Reconectar y reintentar
+            obtener_conexion_odoo()
+            return models.execute_kw(*args, **kwargs)
+        else:
+            # Si no es error de conexión, relanzar
+            raise
 
 def limpiar_datos(datos):
     for clave, valor in datos.items():
@@ -49,12 +84,74 @@ def limpiar_datos(datos):
             datos[clave] = None
     return datos
 
+def validar_nombre(nombre):
+    """Valida que el nombre solo contenga letras, espacios, tildes y caracteres especiales españoles"""
+    if not nombre or nombre.strip() == "":
+        return False, "El nombre no puede estar vacío"
+    
+    # Permitir letras (incluyendo ñ, tildes), espacios, guiones y apóstrofes
+    patron = r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-']+$"
+    if not re.match(patron, nombre):
+        return False, "El nombre no puede contener números ni caracteres especiales"
+    
+    return True, None
+
+def validar_dni(dni):
+    """Valida el formato del DNI español (8 dígitos + 1 letra)"""
+    if not dni or dni.strip() == "":
+        return True, None  # DNI es opcional
+    
+    dni = dni.strip().upper()
+    
+    # Verificar formato: 8 dígitos + 1 letra
+    patron = r'^\d{8}[A-Z]$'
+    if not re.match(patron, dni):
+        return False, "El DNI debe tener 8 dígitos seguidos de una letra (ejemplo: 12345678A)"
+    
+    # Validar letra correcta del DNI
+    letras_dni = 'TRWAGMYFPDXBNJZSQVHLCKE'
+    numero = int(dni[:8])
+    letra_correcta = letras_dni[numero % 23]
+    
+    if dni[8] != letra_correcta:
+        return False, f"La letra del DNI no es correcta. Debería ser {letra_correcta}"
+    
+    return True, None
+
+def validar_fecha_nacimiento(fecha_str):
+    """Valida que la fecha de nacimiento sea coherente"""
+    if not fecha_str or fecha_str.strip() == "":
+        return False, "La fecha de nacimiento es obligatoria para estudiantes"
+    
+    try:
+        fecha = datetime.strptime(fecha_str, '%Y-%m-%d')
+        hoy = datetime.now()
+        
+        # Verificar que no sea una fecha futura
+        if fecha > hoy:
+            return False, "La fecha de nacimiento no puede ser futura"
+        
+        # Calcular edad
+        edad = hoy.year - fecha.year - ((hoy.month, hoy.day) < (fecha.month, fecha.day))
+        
+        # Validar rango de edad razonable (entre 10 y 80 años)
+        if edad < 10:
+            return False, f"La edad calculada ({edad} años) es demasiado baja. Verifica la fecha"
+        
+        if edad > 80:
+            return False, f"La edad calculada ({edad} años) es demasiado alta. Verifica la fecha"
+        
+        return True, None
+        
+    except ValueError:
+        return False, "Formato de fecha inválido. Debe ser YYYY-MM-DD"
+
 @app.route('/procesar-datos', methods=['POST'])
 def ejecutar_funcion():
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     try:
-        resultado = models.execute_kw(DB, uid, PASSWORD,
+        resultado = ejecutar_odoo_kw(DB, uid, PASSWORD,
                              'acceso_ies.estudiante', 'search_read',
                              [[['id_NFC', '=', datos["nfc"]]]],
                              {'fields': ['nombre', 'apellidos', 'curso'], 'limit':1})
@@ -73,34 +170,77 @@ def crear_registro():
     datos = request.get_json()
     tipo = datos.get('tipo', 'alumno')
     
+    # VALIDACIONES COMUNES
+    nombre = datos.get('nombre', '').strip()
+    apellidos = datos.get('apellidos', '').strip()
+    dni = datos.get('dni', '').strip() if datos.get('dni') else None
+    
+    # Validar nombre
+    es_valido, error = validar_nombre(nombre)
+    if not es_valido:
+        return jsonify({'status': 'error', 'mensaje': f'Nombre inválido: {error}'}), 400
+    
+    # Validar apellidos
+    es_valido, error = validar_nombre(apellidos)
+    if not es_valido:
+        return jsonify({'status': 'error', 'mensaje': f'Apellidos inválidos: {error}'}), 400
+    
+    # Validar DNI si se proporciona
+    if dni:
+        es_valido, error = validar_dni(dni)
+        if not es_valido:
+            return jsonify({'status': 'error', 'mensaje': f'DNI inválido: {error}'}), 400
+    
     if tipo == 'profesor':
         modelo = 'acceso_ies.profesor'
+        
+        # Validar departamento
+        departamento = datos.get('departamento')
+        if not departamento:
+            return jsonify({'status': 'error', 'mensaje': 'El departamento es obligatorio para profesores'}), 400
+        
         vals = {
-            'nombre': datos.get('nombre'),
-            'apellidos': datos.get('apellidos'),
-            'dni': datos.get('dni'),
+            'nombre': nombre,
+            'apellidos': apellidos,
+            'dni': dni,
             'id_NFC': datos.get('id_NFC'),
-            'departamento': datos.get('departamento')
+            'departamento': departamento
         }
     else:
         modelo = 'acceso_ies.estudiante'
+        
+        # Validar curso
+        curso = datos.get('curso')
+        if not curso:
+            return jsonify({'status': 'error', 'mensaje': 'El curso es obligatorio para estudiantes'}), 400
+        
+        # Validar fecha de nacimiento
+        fecha_nacimiento = datos.get('fecha_nacimiento')
+        es_valido, error = validar_fecha_nacimiento(fecha_nacimiento)
+        if not es_valido:
+            return jsonify({'status': 'error', 'mensaje': f'Fecha de nacimiento inválida: {error}'}), 400
+        
         vals = {
-            'nombre': datos.get('nombre'),
-            'apellidos': datos.get('apellidos'),
-            'dni': datos.get('dni'),
-            'fecha_nacimiento': datos.get('fecha_nacimiento'),
+            'nombre': nombre,
+            'apellidos': apellidos,
+            'dni': dni,
+            'fecha_nacimiento': fecha_nacimiento,
             'id_NFC': datos.get('id_NFC'),
-            'curso': datos.get('curso')
+            'curso': curso
         }
         
     datos_limpios = limpiar_datos(vals)
     
     try:
-        nuevo_id = models.execute_kw(DB, uid, PASSWORD, modelo, 'create', [datos_limpios])
-        return jsonify({'status': 'exito', 'mensaje': f'Registro creado con ID: {nuevo_id}'})
+        nuevo_id = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'create', [datos_limpios])
+        return jsonify({'status': 'exito', 'mensaje': f'Registro creado con ID: {nuevo_id}'}), 201
     except Exception as e:
         print(f"Error en Odoo al crear {tipo}: {e}")
-        return jsonify({'status': 'error', 'mensaje': str(e)})
+        error_msg = str(e)
+        # Mensajes de error más amigables
+        if 'nfc' in error_msg.lower() and 'unique' in error_msg.lower():
+            return jsonify({'status': 'error', 'mensaje': 'El código NFC ya está asignado a otra persona'}), 409
+        return jsonify({'status': 'error', 'mensaje': f'Error al guardar en Odoo: {error_msg}'}), 500
 
 @app.route('/api/actualizar_estado', methods=['POST'])
 def actualizar_estado():
@@ -115,11 +255,78 @@ def actualizar_estado():
     modelo = 'acceso_ies.estudiante' if tipo == 'alumno' else 'acceso_ies.profesor'
     
     try:
-        models.execute_kw(DB, uid, PASSWORD, modelo, 'write', [[id_persona], {campo: valor}])
+        ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'write', [[id_persona], {campo: valor}])
         return jsonify({'status': 'success', 'mensaje': f'Estado {campo} actualizado correctamente'})
     except Exception as e:
         print(f"Error actualizando estado en Odoo: {e}")
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+
+@app.route('/api/actualizar', methods=['PUT', 'POST'])
+def actualizar_persona():
+    if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
+    datos = request.get_json()
+    
+    id_persona = datos.get('id')
+    tipo = datos.get('tipo', 'alumno')
+    
+    if not id_persona:
+        return jsonify({'status': 'error', 'mensaje': 'Se requiere el ID de la persona'}), 400
+    
+    modelo = 'acceso_ies.estudiante' if tipo == 'alumno' else 'acceso_ies.profesor'
+    
+    # Validaciones
+    nombre = datos.get('nombre', '').strip()
+    apellidos = datos.get('apellidos', '').strip()
+    dni = datos.get('dni', '').strip()
+    
+    # Validar nombre
+    if nombre and not validar_nombre(nombre):
+        return jsonify({'status': 'error', 'mensaje': 'El nombre solo puede contener letras'}), 400
+    
+    # Validar apellidos
+    if apellidos and not validar_nombre(apellidos):
+        return jsonify({'status': 'error', 'mensaje': 'Los apellidos solo pueden contener letras'}), 400
+    
+    # Validar DNI si se proporciona
+    if dni and not validar_dni(dni):
+        return jsonify({'status': 'error', 'mensaje': 'DNI inválido (formato: 12345678A)'}), 400
+    
+    # Validar fecha de nacimiento solo para alumnos
+    if tipo == 'alumno':
+        fecha_nacimiento = datos.get('fecha_nacimiento')
+        if fecha_nacimiento and not validar_fecha_nacimiento(fecha_nacimiento):
+            return jsonify({'status': 'error', 'mensaje': 'Fecha de nacimiento inválida (edad entre 10 y 80 años)'}), 400
+    
+    # Preparar datos para actualizar
+    valores = {}
+    if nombre:
+        valores['nombre'] = nombre
+    if apellidos:
+        valores['apellidos'] = apellidos
+    if dni:
+        valores['dni'] = dni
+    
+    if tipo == 'alumno':
+        if 'curso' in datos:
+            valores['curso'] = datos['curso']
+        if 'fecha_nacimiento' in datos:
+            valores['fecha_nacimiento'] = datos['fecha_nacimiento']
+    else:  # profesor
+        if 'departamento' in datos:
+            valores['departamento'] = datos['departamento']
+    
+    if 'id_NFC' in datos:
+        valores['id_NFC'] = datos.get('id_NFC', '')
+    
+    try:
+        ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'write', [[id_persona], valores])
+        return jsonify({'status': 'success', 'mensaje': f'{tipo.capitalize()} actualizado correctamente'})
+    except Exception as e:
+        print(f"Error actualizando {tipo} en Odoo: {e}")
+        error_msg = str(e)
+        if 'nfc' in error_msg.lower() and 'unique' in error_msg.lower():
+            return jsonify({'status': 'error', 'mensaje': 'El código NFC ya está asignado a otra persona'}), 409
+        return jsonify({'status': 'error', 'mensaje': f'Error al actualizar: {error_msg}'}), 500
 
 @app.route('/Borrar_Usuario', methods=['DELETE'])
 def borrar_usuario():
@@ -133,14 +340,14 @@ def borrar_usuario():
     modelo = 'acceso_ies.profesor' if tipo == 'profesor' else 'acceso_ies.estudiante'
 
     try:
-        user_ids = models.execute_kw(DB, uid, PASSWORD,
+        user_ids = ejecutar_odoo_kw(DB, uid, PASSWORD,
                                      modelo, 'search',
                                      [[['id_NFC', '=', datos["nfc"]]]])
         
         if not user_ids:
             return jsonify({'status': 'error', 'mensaje': f'No se encontró ningún {tipo} con ese NFC'}), 404
             
-        resultado = models.execute_kw(DB, uid, PASSWORD, modelo, 'unlink', [user_ids])
+        resultado = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'unlink', [user_ids])
         
         if resultado:
             return jsonify({'status': 'exito', 'mensaje': f'Usuario ({tipo}) borrado correctamente'})
@@ -151,12 +358,54 @@ def borrar_usuario():
         print(f"Error borrando usuario en Odoo: {e}")
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
 
+@app.route('/api/borrar_persona', methods=['DELETE', 'POST', 'OPTIONS'])
+def borrar_persona():
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión a Odoo'}), 500
+    datos = request.get_json()
+
+    if not datos:
+        return jsonify({'status': 'error', 'mensaje': 'No se recibieron datos'}), 400
+
+    tipo = datos.get('tipo', 'alumno')
+    modelo = 'acceso_ies.profesor' if tipo == 'profesor' else 'acceso_ies.estudiante'
+
+    try:
+        # Aceptar tanto 'id' directo como 'nfc' para buscar
+        if 'id' in datos:
+            # Usar el ID directamente
+            user_id = datos['id']
+            # Verificar que existe
+            existe = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'search', [[['id', '=', user_id]]])
+            if not existe:
+                return jsonify({'status': 'error', 'mensaje': f'No se encontró {tipo} con ID {user_id}'}), 404
+            user_ids = [user_id]
+        elif 'nfc' in datos:
+            # Buscar por NFC
+            user_ids = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'search', [[['id_NFC', '=', datos["nfc"]]]])
+            if not user_ids:
+                return jsonify({'status': 'error', 'mensaje': f'No se encontró ningún {tipo} con ese NFC'}), 404
+        else:
+            return jsonify({'status': 'error', 'mensaje': 'Se requiere el campo "id" o "nfc" para borrar'}), 400
+
+        resultado = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'unlink', [user_ids])
+
+        if resultado:
+            return jsonify({'status': 'exito', 'mensaje': f'Persona ({tipo}) borrada correctamente'})
+        else:
+            return jsonify({'status': 'error', 'mensaje': 'Odoo denegó el borrado de la persona'}), 500
+
+    except Exception as e:
+        print(f"Error borrando persona en Odoo: {e}")
+        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+
 @app.route('/Salida_Recreo', methods=['POST'])
 def salida_recreo():
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     try:
-        user = models.execute_kw(DB, uid, PASSWORD,
+        user = ejecutar_odoo_kw(DB, uid, PASSWORD,
                                  'acceso_ies.estudiante', 'search_read',
                                  [[['id_NFC', '=', datos["nfc"]]]],
                                  {'fields': ['id', 'nombre','apellidos', 'recreo', 'fecha_nacimiento', 'curso'], 'limit':1})
@@ -169,7 +418,7 @@ def salida_recreo():
             
             nuevo_estado = True if edad >= 18 else False
             
-            models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'write', 
+            ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'write', 
                               [[user[0]['id']], {'recreo': nuevo_estado}])
             
             user[0]['recreo'] = nuevo_estado
@@ -196,10 +445,10 @@ def get_dashboard_data():
             campos = ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'recreo', 'salida_anticipada']
 
         try:
-            personas = models.execute_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos})
+            personas = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos})
         except Exception:
             campos_basicos = ['id', 'nombre', 'apellidos', 'departamento', 'id_NFC'] if tipo == 'profesores' else ['id', 'nombre', 'apellidos', 'curso', 'id_NFC']
-            personas = models.execute_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos_basicos})
+            personas = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos_basicos})
 
         incidencias = sum(1 for p in personas if not p.get('id_NFC'))
         total_salidas_hoy = sum(1 for p in personas if p.get('salida_anticipada', False))
@@ -227,7 +476,7 @@ def get_dashboard_data():
         etiquetas_dias = {0: "L", 1: "M", 2: "X", 3: "J", 4: "V"}
         
         try:
-            asistencias_semana = models.execute_kw(DB, uid, PASSWORD, modelo_asistencia, 'search_read',
+            asistencias_semana = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo_asistencia, 'search_read',
                 [[('fecha', '>=', inicio_semana_str)]],
                 {'fields': ['fecha']}
             )
@@ -263,19 +512,19 @@ def get_dashboard_data():
 def get_alumnado_completo():
     if not uid: return jsonify({'status': 'error'}), 500
     try:
-        estudiantes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', 
+        estudiantes = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', 
                                         [[]], 
                                         {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento', 'recreo', 'salida_anticipada']})
         return jsonify({"status": "success", "data": estudiantes})
     except Exception as e:
-        estudiantes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento']})
+        estudiantes = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento']})
         return jsonify({"status": "success", "data": estudiantes})
 
 @app.route('/api/profesorado', methods=['GET'])
 def get_profesorado():
     if not uid: return jsonify({'status': 'error'}), 500
     try:
-        profesorado = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.profesor', 'search_read', 
+        profesorado = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.profesor', 'search_read', 
                                         [[]], 
                                         {'fields': ['id', 'nombre', 'apellidos', 'dni', 'departamento', 'id_NFC']})
         return jsonify({"status": "success", "data": profesorado})
@@ -312,7 +561,7 @@ def vincular_nfc():
     nombre_contrario = 'alumno' if tipo == 'profesores' else 'profesor'
 
     try:
-        nfc_en_actual = models.execute_kw(DB, uid, PASSWORD, modelo_actual, 'search', 
+        nfc_en_actual = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo_actual, 'search', 
                                           [[('id_NFC', '=', nfc)]])
         
         if nfc_en_actual:
@@ -321,13 +570,13 @@ def vincular_nfc():
             else:
                 return jsonify({'status': 'error', 'mensaje': f'El NFC ya está asignado a otro {tipo[:-1]}'}), 409
 
-        nfc_en_contrario = models.execute_kw(DB, uid, PASSWORD, modelo_contrario, 'search', 
+        nfc_en_contrario = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo_contrario, 'search', 
                                              [[('id_NFC', '=', nfc)]])
         
         if nfc_en_contrario:
             return jsonify({'status': 'error', 'mensaje': f'El NFC ya está asignado a un {nombre_contrario}'}), 409
 
-        resultado = models.execute_kw(DB, uid, PASSWORD, modelo_actual, 'write', 
+        resultado = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo_actual, 'write', 
                                       [[registro_id], {'id_NFC': nfc}])
         
         if resultado:
@@ -352,7 +601,7 @@ def Asistencia_profesor():
         else:
             estado_asistencia = estado_bruto
 
-        profesor = models.execute_kw(DB, uid, PASSWORD,
+        profesor = ejecutar_odoo_kw(DB, uid, PASSWORD,
                                  'acceso_ies.profesor', 'search_read',
                                  [[['id_NFC', '=', nfc_id]]],
                                  {'fields': ['id', 'nombre'], 'limit': 1})
@@ -373,7 +622,7 @@ def Asistencia_profesor():
         }
 
         try:
-            nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 'create', [[datos_para_odoo]])
+            nuevo_registro_id = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 'create', [[datos_para_odoo]])
         except Exception as error_odoo:
             return jsonify({'status': 'error', 'mensaje': f"Odoo rechazó el registro: {str(error_odoo)}"}), 500
             
@@ -409,7 +658,7 @@ def Asistencia_estudiante():
         else:
             estado_asistencia = estado_bruto
 
-        estudiantes = models.execute_kw(DB, uid, PASSWORD,
+        estudiantes = ejecutar_odoo_kw(DB, uid, PASSWORD,
                                  'acceso_ies.estudiante', 'search_read',
                                  [[['id_NFC', '=', nfc_id]]],
                                  {'fields': ['id', 'nombre', 'salida_anticipada'], 'limit': 1})
@@ -434,7 +683,7 @@ def Asistencia_estudiante():
         }
 
         try:
-            nuevo_registro_id = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', [[datos_para_odoo]])
+            nuevo_registro_id = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 'create', [[datos_para_odoo]])
         except Exception as error_odoo:
             return jsonify({'status': 'error', 'mensaje': f"Odoo DB Error: {str(error_odoo)}"}), 500
         
@@ -455,7 +704,7 @@ def get_profesor():
     datos = request.get_json()
     try:
         print(datos)
-        resultado = models.execute_kw(DB, uid, PASSWORD,
+        resultado = ejecutar_odoo_kw(DB, uid, PASSWORD,
                              'acceso_ies.profesor', 'search_read',
                              [[['id_NFC', '=', datos["nfc"]]]],
                              {'fields': ['nombre', 'apellidos'], 'limit':1})
@@ -520,13 +769,13 @@ def get_asistencia():
 
     try:
         if filtro in ['todos', 'alumnos']:
-            registros_alumnos = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 
+            registros_alumnos = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_estudiante', 
                 'search_read', [search_domain],
                 {'fields': ['estudiante_id', 'estado_asistencia', 'create_date', 'fecha'], 'order': 'fecha desc', 'limit': limite})
             procesar_registros(registros_alumnos, 'estudiante_id', 'alumno', 'llegada_tarde')
 
         if filtro in ['todos', 'profesores']:
-            registros_profes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 
+            registros_profes = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.asistencia_profesor', 
                 'search_read', [search_domain],
                 {'fields': ['profesor_id', 'estado_asistencia', 'create_date', 'fecha'], 'order': 'fecha desc', 'limit': limite})
             procesar_registros(registros_profes, 'profesor_id', 'profesor', 'salida_anticipada')
@@ -555,8 +804,8 @@ def importar_asistencia():
     errores = []
 
     try:
-        estudiantes = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos']})
-        profesores = models.execute_kw(DB, uid, PASSWORD, 'acceso_ies.profesor', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos']})
+        estudiantes = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos']})
+        profesores = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.profesor', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos']})
         
         def generar_nombre_completo(p):
             nom = p.get('nombre') if isinstance(p.get('nombre'), str) else ''
@@ -641,7 +890,7 @@ def importar_asistencia():
             datos_odoo['fecha'] = fecha_odoo
         
         try:
-            nuevo_id = models.execute_kw(DB, uid, PASSWORD, modelo, 'create', [[datos_odoo]])
+            nuevo_id = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'create', [[datos_odoo]])
             exitosos += 1
         except Exception as e:
             errores.append(f"Odoo rechazó a {inc.get('nombre')} (Estado intentado: {estado_asistencia}): {str(e)}")
@@ -661,5 +910,21 @@ def importar_asistencia():
         
     return jsonify({'status': status, 'mensaje': mensaje, 'exitosos': exitosos, 'errores': errores})
 
+@app.route('/')
+def index():
+    """Sirve la página principal"""
+    return send_from_directory(WEB_DIR, 'pagina_web.html')
+
+@app.route('/script.js')
+def serve_script():
+    """Sirve el archivo JavaScript"""
+    return send_from_directory(WEB_DIR, 'script.js')
+
+@app.route('/style.css')
+def serve_style():
+    """Sirve el archivo CSS"""
+    return send_from_directory(WEB_DIR, 'style.css')
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
+    
