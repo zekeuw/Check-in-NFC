@@ -8,7 +8,7 @@ DB = 'Servidor_proyecto'
 USERNAME = 'admin'
 PASSWORD = 'admin'
 
-SECRET_KEY = "kartu prosím"
+SECRET_KEY = "kartu_prosim"
 
 app = Flask(__name__)
 CORS(app)
@@ -119,6 +119,36 @@ def actualizar_estado():
         return jsonify({'status': 'success', 'mensaje': f'Estado {campo} actualizado correctamente'})
     except Exception as e:
         print(f"Error actualizando estado en Odoo: {e}")
+        return jsonify({'status': 'error', 'mensaje': str(e)}), 500
+
+@app.route('/Borrar_Usuario', methods=['DELETE'])
+def borrar_usuario():
+    if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión a Odoo'}), 500
+    datos = request.get_json()
+
+    if not datos or "nfc" not in datos:
+        return jsonify({'status': 'error', 'mensaje': 'Se requiere el campo "nfc" para borrar el usuario'}), 400
+
+    tipo = datos.get('tipo', 'alumno')
+    modelo = 'acceso_ies.profesor' if tipo == 'profesor' else 'acceso_ies.estudiante'
+
+    try:
+        user_ids = models.execute_kw(DB, uid, PASSWORD,
+                                     modelo, 'search',
+                                     [[['id_NFC', '=', datos["nfc"]]]])
+        
+        if not user_ids:
+            return jsonify({'status': 'error', 'mensaje': f'No se encontró ningún {tipo} con ese NFC'}), 404
+            
+        resultado = models.execute_kw(DB, uid, PASSWORD, modelo, 'unlink', [user_ids])
+        
+        if resultado:
+            return jsonify({'status': 'exito', 'mensaje': f'Usuario ({tipo}) borrado correctamente'})
+        else:
+            return jsonify({'status': 'error', 'mensaje': 'Odoo denegó el borrado del usuario'}), 500
+
+    except Exception as e:
+        print(f"Error borrando usuario en Odoo: {e}")
         return jsonify({'status': 'error', 'mensaje': str(e)}), 500
 
 @app.route('/Salida_Recreo', methods=['POST'])
@@ -634,4 +664,7 @@ def importar_asistencia():
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
     
+<<<<<<< HEAD
     
+=======
+>>>>>>> 5211a68993df69b9e2793f4956972640b93ff78c
