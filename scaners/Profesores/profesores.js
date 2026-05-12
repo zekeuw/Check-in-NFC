@@ -25,7 +25,7 @@ const enviarFichaje = async (nfcId) => {
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': "kartu_prosim"},
       body: JSON.stringify({
         id_NFC: nfcId,
         estado_asistencia: operacionActual,
