@@ -663,8 +663,3 @@ def importar_asistencia():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
-    
-<<<<<<< HEAD
-    
-=======
->>>>>>> 5211a68993df69b9e2793f4956972640b93ff78c
