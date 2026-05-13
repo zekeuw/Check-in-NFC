@@ -47,7 +47,7 @@ def asegurar_conexion_odoo():
         return
     
     # No pedir la api key si lo que estas haciendo es pedir la pagina web o sus recursos estaticos
-    rutas_publicas = ['/', '/script.js', '/style.css', '/Estudiantes', '/Estudiantes/script.js', '/Estudiantes/style.css', '/Profesores', '/Profesores/script.js', '/Profesores/style.css', '/AsistenciaEstudiante', '/AsistenciaProfesor', '/GetProfesor']
+    rutas_publicas = ['/', '/script.js', '/style.css', '/favicon.ico', '/Estudiantes', '/Estudiantes/script.js', '/Estudiantes/style.css', '/Profesores', '/Profesores/script.js', '/Profesores/style.css', '/AsistenciaEstudiante', '/AsistenciaProfesor', '/GetProfesor']
     if request.path in rutas_publicas:
         return
 
@@ -176,6 +176,7 @@ def crear_registro():
     nombre = datos.get('nombre', '').strip()
     apellidos = datos.get('apellidos', '').strip()
     dni = datos.get('dni', '').strip() if datos.get('dni') else None
+    id_nfc = datos.get('id_NFC', '').strip() if datos.get('id_NFC') else None
     
     # Validar nombre
     es_valido, error = validar_nombre(nombre)
@@ -192,6 +193,23 @@ def crear_registro():
         es_valido, error = validar_dni(dni)
         if not es_valido:
             return jsonify({'status': 'error', 'mensaje': f'DNI inválido: {error}'}), 400
+        
+        # Verificar DNI único en el modelo correspondiente
+        modelo = 'acceso_ies.profesor' if tipo == 'profesor' else 'acceso_ies.estudiante'
+        dni_existente = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'search', 
+                                          [[('dni', '=', dni)]])
+        if dni_existente:
+            return jsonify({'status': 'error', 'mensaje': 'El DNI ya está registrado para otro usuario'}), 409
+    
+    # Validar NFC único si se proporciona
+    if id_nfc:
+        # Verificar en ambos modelos (estudiantes y profesores)
+        nfc_en_estudiantes = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search', 
+                                              [[('id_NFC', '=', id_nfc)]])
+        nfc_en_profesores = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.profesor', 'search', 
+                                             [[('id_NFC', '=', id_nfc)]])
+        if nfc_en_estudiantes or nfc_en_profesores:
+            return jsonify({'status': 'error', 'mensaje': 'El código NFC ya está asignado a otra persona'}), 409
     
     if tipo == 'profesor':
         modelo = 'acceso_ies.profesor'
@@ -205,7 +223,7 @@ def crear_registro():
             'nombre': nombre,
             'apellidos': apellidos,
             'dni': dni,
-            'id_NFC': datos.get('id_NFC'),
+            'id_NFC': id_nfc,
             'departamento': departamento
         }
     else:
@@ -227,7 +245,7 @@ def crear_registro():
             'apellidos': apellidos,
             'dni': dni,
             'fecha_nacimiento': fecha_nacimiento,
-            'id_NFC': datos.get('id_NFC'),
+            'id_NFC': id_nfc,
             'curso': curso
         }
         
@@ -591,6 +609,14 @@ def vincular_nfc():
     
 @app.route("/AsistenciaProfesor", methods=['POST'])
 def Asistencia_profesor():
+    global uid
+    # Asegurar conexión a Odoo
+    if not uid:
+        obtener_conexion_odoo()
+    
+    if not uid:
+        return jsonify({'status': 'error', 'mensaje': 'No se pudo conectar con Odoo'}), 500
+    
     try:
         datos = request.get_json()
         nfc_id = datos.get("id_NFC")
@@ -598,8 +624,8 @@ def Asistencia_profesor():
         estado_bruto = str(datos.get("estado_asistencia", "")).lower()
         if "entrada" in estado_bruto or "llego" in estado_bruto:
             estado_asistencia = "llego al centro"
-        elif "salida" in estado_bruto or "salio" in estado_bruto:
-            estado_asistencia = "salio del centro"
+        elif "salida" in estado_bruto or "salio" in estado_bruto or "sale" in estado_bruto:
+            estado_asistencia = "sale del centro"
         else:
             estado_asistencia = estado_bruto
 
@@ -609,7 +635,14 @@ def Asistencia_profesor():
                                  {'fields': ['id', 'nombre'], 'limit': 1})
         
         if not profesor:
-            return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'})
+            # Verificar si es un estudiante
+            estudiantes = ejecutar_odoo_kw(DB, uid, PASSWORD,
+                                     'acceso_ies.estudiante', 'search_read',
+                                     [[['id_NFC', '=', nfc_id]]],
+                                     {'fields': ['nombre'], 'limit': 1})
+            if estudiantes:
+                return jsonify({'status': 'error', 'mensaje': f'Esta tarjeta pertenece al estudiante {estudiantes[0]["nombre"]}. Usa el terminal de estudiantes.'}), 404
+            return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
 
         profesor_encontrado = profesor[0]
         nombre_profe = profesor_encontrado.get("nombre", "El profesor")
@@ -647,6 +680,14 @@ def Asistencia_profesor():
 
 @app.route("/AsistenciaEstudiante", methods=['POST'])
 def Asistencia_estudiante():
+    global uid
+    # Asegurar conexión a Odoo
+    if not uid:
+        obtener_conexion_odoo()
+    
+    if not uid:
+        return jsonify({'status': 'error', 'mensaje': 'No se pudo conectar con Odoo'}), 500
+    
     datos = request.get_json()
     
     try:
@@ -666,6 +707,13 @@ def Asistencia_estudiante():
                                  {'fields': ['id', 'nombre', 'salida_anticipada'], 'limit': 1})
         
         if not estudiantes:
+            # Verificar si es un profesor
+            profesores = ejecutar_odoo_kw(DB, uid, PASSWORD,
+                                     'acceso_ies.profesor', 'search_read',
+                                     [[['id_NFC', '=', nfc_id]]],
+                                     {'fields': ['nombre'], 'limit': 1})
+            if profesores:
+                return jsonify({'status': 'error', 'mensaje': f'Esta tarjeta pertenece al profesor {profesores[0]["nombre"]}. Usa el terminal de profesores.'}), 404
             return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
 
         estudiante_encontrado = estudiantes[0]
@@ -702,7 +750,14 @@ def Asistencia_estudiante():
 
 @app.route('/GetProfesor', methods=['POST'])
 def get_profesor():
-    if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
+    global uid
+    # Asegurar conexión a Odoo
+    if not uid:
+        obtener_conexion_odoo()
+    
+    if not uid:
+        return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
+        
     datos = request.get_json()
     try:
         print(datos)

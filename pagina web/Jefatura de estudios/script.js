@@ -2,7 +2,7 @@
 let BASE_URL = localStorage.getItem('sjr_base_url') || 'http://10.102.7.221:5000';
 let API_KEY = localStorage.getItem('sjr_api_key') || 'kartu_prosim';
 let miGraficoChartJs = null;
-let miGraficoEstado = null; // NUEVA VARIABLE PARA EL SEGUNDO GRÁFICO
+let miGraficoEstado = null;
 let intervalDashboard = null;
 
 let modoEdicion = false;
@@ -152,7 +152,12 @@ function cambiarSeccion(idSeccion, botonClicado) {
     if (idSeccion === 'estadisticas') cargarDashboard();
     if (idSeccion === 'alumnado') cargarAlumnado();
     if (idSeccion === 'profesorado') cargarProfesorado();
-    if (idSeccion === 'nfc') cargarSelectNFC();
+    if (idSeccion === 'nfc') {
+        cargarSelectNFC();
+        // Limpiar campo NFC al entrar a la sección
+        document.getElementById('input-nfc-code').value = '';
+        document.getElementById('nfc-feedback').innerHTML = '';
+    }
     if (idSeccion === 'asistencia') cargarAsistencia();
     if (idSeccion === 'configuracion') cargarValoresConfiguracion();
 
@@ -222,9 +227,10 @@ function modificarPersona(id, tipo) {
         document.getElementById('add-al-curso').value = alumno.curso || '';
         document.getElementById('add-al-dni').value = alumno.dni || '';
         document.getElementById('add-al-fecha').value = alumno.fecha_nacimiento || '';
-        document.getElementById('add-al-nfc').value = alumno.id_NFC || '';
+        document.getElementById('add-al-nfc').value = alumno.id_NFC || ''; 
         document.getElementById('add-al-feedback').innerHTML = '';
         
+        document.getElementById('grupo-nfc-al').style.display = 'none';
         document.querySelector('#sec-crear-alumno h3').innerText = 'Modificar Alumno';
         document.querySelector('#sec-crear-alumno .btn-large').innerText = 'GUARDAR CAMBIOS';
         
@@ -238,9 +244,10 @@ function modificarPersona(id, tipo) {
         document.getElementById('add-pr-apellidos').value = profe.apellidos || '';
         document.getElementById('add-pr-departamento').value = profe.departamento || '';
         document.getElementById('add-pr-dni').value = profe.dni || '';
-        document.getElementById('add-pr-nfc').value = profe.id_NFC || '';
+        document.getElementById('add-pr-nfc').value = profe.id_NFC || ''; 
         document.getElementById('add-pr-feedback').innerHTML = '';
         
+        document.getElementById('grupo-nfc-pr').style.display = 'none';
         document.querySelector('#sec-crear-profesor h3').innerText = 'Modificar Profesor';
         document.querySelector('#sec-crear-profesor .btn-large').innerText = 'GUARDAR CAMBIOS';
         
@@ -276,7 +283,12 @@ async function cargarDashboard() {
         
         let htmlTabla = '';
         
-        let countCentro = 0;
+        // Verificar si es horario de recreo (ejemplo: 11:00-11:30)
+        let ahora = new Date();
+        let horaActual = ahora.getHours();
+        let minutoActual = ahora.getMinutes();
+        let esHorarioRecreo = (horaActual === 11 && minutoActual >= 0 && minutoActual < 30);
+        
         let countRecreo = 0;
         let countSalida = 0;
 
@@ -284,8 +296,7 @@ async function cargarDashboard() {
             let persona = listaPersonas[i];
             
             if (persona.salida_anticipada) countSalida++;
-            else if (persona.recreo) countRecreo++;
-            else countCentro++;
+            else if (persona.recreo && esHorarioRecreo) countRecreo++;
             
             let identificadorNfc = persona.nfc_id || persona.id_NFC;
             let nombrePersona = persona.name || persona.nombre;
@@ -305,15 +316,25 @@ async function cargarDashboard() {
             if (identificadorNfc) htmlTabla += '<span class="nfc-tag">' + identificadorNfc + '</span>';
             else htmlTabla += '<span class="badge-error">SIN TAG</span>';
             htmlTabla += '</td>';
-
-            let recreoClase = persona.recreo ? 'nfc-tag' : 'badge-error';
-            let recreoTexto = persona.recreo ? 'EN RECREO' : 'EN CENTRO';
+            
+            // Etiquetas unificadas - Priorizar salida anticipada
+            let recreoClase, recreoTexto;
+            if (persona.salida_anticipada) {
+                recreoClase = 'badge-error';
+                recreoTexto = 'HA SALIDO';
+            } else if (persona.recreo && esHorarioRecreo) {
+                recreoClase = 'badge-warning';
+                recreoTexto = 'EN RECREO';
+            } else {
+                recreoClase = 'badge-success';
+                recreoTexto = 'EN CENTRO';
+            }
             htmlTabla += '<td style="text-align:center;">';
             htmlTabla += '<span class="' + recreoClase + '" style="font-size: 11px;">' + recreoTexto + '</span>';
             htmlTabla += '</td>';
 
-            let salidaClase = persona.salida_anticipada ? 'badge-error' : 'nfc-tag';
-            let salidaTexto = persona.salida_anticipada ? 'HA SALIDO' : 'EN EL CENTRO';
+            let salidaClase = persona.salida_anticipada ? 'badge-error' : 'badge-success';
+            let salidaTexto = persona.salida_anticipada ? 'HA SALIDO' : 'EN CENTRO';
             htmlTabla += '<td style="text-align:center;">';
             htmlTabla += '<span class="' + salidaClase + '" style="font-size: 11px;">' + salidaTexto + '</span>';
             htmlTabla += '</td>';
@@ -322,19 +343,15 @@ async function cargarDashboard() {
         }
 
         document.getElementById('odoo-table-body').innerHTML = htmlTabla;
-
-        document.getElementById('stat-centro').innerText = countCentro;
         document.getElementById('stat-recreo').innerText = countRecreo;
         document.getElementById('stat-salidas').innerText = countSalida;
         
-        let incidenciasTotales = datos.stats ? (datos.stats.incidencias || 0) : 0;
-        document.getElementById('stat-incidencias').innerText = incidenciasTotales;
-
         let respuestaAsis = await fetch(BASE_URL + '/api/asistencia?filtro=' + tipoSeleccionado, {headers: {"x-api-key": API_KEY}});
         let jsonAsistencia = await respuestaAsis.json();
 
         let conteoSalidasSemana = [0, 0, 0, 0, 0];
         let conteoRetrasosSemana = [0, 0, 0, 0, 0];
+        let retrasosHoy = 0; // NUEVO: Variable para contar los retrasos de hoy
         let etiquetasDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
         
         let feedHtml = '';
@@ -352,6 +369,18 @@ async function cargarDashboard() {
 
                 if (partesFecha.length === 3) {
                     let fechaRegistro = new Date(partesFecha[2], partesFecha[1] - 1, partesFecha[0]);
+                    
+                    // NUEVO: Comprobar si la fecha es exactamente la de hoy
+                    if (fechaRegistro.getDate() === hoy.getDate() && 
+                        fechaRegistro.getMonth() === hoy.getMonth() && 
+                        fechaRegistro.getFullYear() === hoy.getFullYear()) {
+                        
+                        // Si es hoy y el tipo contiene 'tarde' o 'retraso', sumamos 1
+                        if (textoTipo.includes('tarde') || textoTipo.includes('retraso')) {
+                            retrasosHoy++;
+                        }
+                    }
+
                     let diferenciaTiempo = hoy.getTime() - fechaRegistro.getTime();
                     let diferenciaDias = Math.floor(diferenciaTiempo / (1000 * 3600 * 24));
 
@@ -368,6 +397,9 @@ async function cargarDashboard() {
                 }
             }
             
+            // NUEVO: Actualizamos la tarjeta de arriba con el total calculado
+            document.getElementById('stat-incidencias').innerText = retrasosHoy;
+            
             let ultimasActividades = listaAsistencia.slice(0, 8);
             if(ultimasActividades.length === 0) {
                 feedHtml = '<div style="text-align:center; color:#64748b; padding: 20px;">No hay actividad reciente.</div>';
@@ -377,10 +409,11 @@ async function cargarDashboard() {
                     let horaLimpia = horaPartida.split(':').slice(0, 2).join(':'); 
                     
                     let tipoLimpio = String(act.tipo).toLowerCase();
-                    let badgeColor = '#3b82f6';
+                    let badgeColor = '#64748b'; // default gris
                     
-                    if (tipoLimpio.includes('salida')) badgeColor = '#e11d48';
-                    else if (tipoLimpio.includes('tarde') || tipoLimpio.includes('retraso')) badgeColor = '#f59e0b';
+                    if (tipoLimpio.includes('salida')) badgeColor = '#e11d48'; // Rojo
+                    else if (tipoLimpio.includes('tarde') || tipoLimpio.includes('retraso')) badgeColor = '#6366f1'; // Indigo
+                    else if (tipoLimpio.includes('recreo')) badgeColor = '#f59e0b'; // Naranja
                     
                     feedHtml += `
                     <div class="activity-item">
@@ -415,14 +448,14 @@ async function cargarDashboard() {
                     {
                         label: 'Salidas Anticipadas',
                         data: conteoSalidasSemana,
-                        backgroundColor: 'rgba(225, 29, 72, 0.85)',
+                        backgroundColor: 'rgba(225, 29, 72, 0.85)', // Rojo #e11d48
                         borderRadius: 4,
                         barThickness: 20
                     },
                     {
                         label: 'Retrasos',
                         data: conteoRetrasosSemana,
-                        backgroundColor: 'rgba(245, 158, 11, 0.85)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.85)', // Indigo #6366f1
                         borderRadius: 4,
                         barThickness: 20
                     }
@@ -466,10 +499,10 @@ async function cargarDashboard() {
         miGraficoEstado = new Chart(ctxEstado, {
             type: 'doughnut',
             data: {
-                labels: ['En Centro', 'En Recreo', 'Han Salido'],
+                labels: ['En Recreo', 'Han Salido'],
                 datasets: [{
-                    data: [countCentro, countRecreo, countSalida],
-                    backgroundColor: ['#10b981', '#f59e0b', '#e11d48'],
+                    data: [countRecreo, countSalida],
+                    backgroundColor: ['#f59e0b', '#e11d48'], // Naranja y Rojo unificados
                     borderWidth: 0,
                     hoverOffset: 6
                 }]
@@ -527,8 +560,8 @@ function aplicarFiltrosAvanzados() {
     let estadoNfc = document.getElementById('filtro-nfc-al').value;
 
     let listaFiltrada = listaAlumnosActual.filter(al => {
-        let textoBusqueda = (al.nombre + ' ' + (al.apellidos || '') + ' ' + (al.dni || '')).toLowerCase();
-        let cumpleTexto = textoBusqueda.includes(texto);
+        let textoBusqueda = normalizarTexto((al.nombre + ' ' + (al.apellidos || '') + ' ' + (al.dni || '')).toLowerCase());
+        let cumpleTexto = textoBusqueda.includes(normalizarTexto(texto));
         let cumpleCurso = (curso === 'todos') || (al.curso === curso);
         
         let tieneNfc = Boolean(al.id_NFC && al.id_NFC !== "false" && String(al.id_NFC).trim() !== "");
@@ -794,8 +827,8 @@ function aplicarFiltrosAvanzadosProfesores() {
     let departamento = document.getElementById('filtro-dept-pr').value;
 
     let listaFiltrada = listaProfesoresActual.filter(pr => {
-        let textoBusqueda = (pr.nombre + ' ' + (pr.apellidos || '') + ' ' + (pr.dni || '')).toLowerCase();
-        let cumpleTexto = textoBusqueda.includes(texto);
+        let textoBusqueda = normalizarTexto((pr.nombre + ' ' + (pr.apellidos || '') + ' ' + (pr.dni || '')).toLowerCase());
+        let cumpleTexto = textoBusqueda.includes(normalizarTexto(texto));
         let cumpleDept = (departamento === 'todos') || (pr.departamento === departamento);
         
         return cumpleTexto && cumpleDept;
@@ -918,16 +951,16 @@ async function cargarAsistencia() {
                 let urlAvatar = `https://ui-avatars.com/api/?name=${nombreParaAvatar}&background=random&color=fff&size=128`;
                 let imagenHtml = `<img src="${urlAvatar}" class="avatar-img">`;
 
-                let estiloBadge = "background:#f1f5f9; color:#475569; border: 1px solid #e2e8f0;";
+                let claseBadge = "badge-default"; 
                 let textoIncidencia = registro.tipo;
 
                 let tipoTexto = String(registro.tipo).toLowerCase();
 
-                if (tipoTexto.includes('tarde')) {
-                    estiloBadge = "background:#fef08a; color:#854d0e; border: 1px solid #fde047;";
+                if (tipoTexto.includes('tarde') || tipoTexto.includes('retraso')) {
+                    claseBadge = "badge-indigo";
                     textoIncidencia = "Llegada Tarde";
                 } else if (tipoTexto.includes('salida')) {
-                    estiloBadge = "background:#fed7aa; color:#9a3412; border: 1px solid #fdba74;";
+                    claseBadge = "badge-error";
                     textoIncidencia = "Salida Anticipada";
                 }
 
@@ -935,7 +968,7 @@ async function cargarAsistencia() {
                     <td style="text-align:center;">${imagenHtml}</td>
                     <td><span class="user-name">${registro.nombre}</span></td>
                     <td><span class="user-meta" style="text-transform: capitalize;">${registro.colectivo}</span></td>
-                    <td><span class="badge-error" style="${estiloBadge}">${textoIncidencia}</span></td>
+                    <td><span class="${claseBadge}">${textoIncidencia}</span></td>
                     <td><strong>${registro.hora}</strong></td>
                     <td><span style="color:#64748b; font-size:0.85rem;">${registro.notas ? registro.notas : '--'}</span></td>
                 </tr>`;
@@ -950,6 +983,10 @@ async function cargarAsistencia() {
 async function cargarSelectNFC() {
     let tipoSeleccionado = document.getElementById('select-tipo-nfc').value;
     let desplegable = document.getElementById('select-persona-nfc');
+    
+    // Feedback visual mientras carga
+    desplegable.innerHTML = '<option value="">Cargando lista...</option>'; 
+    
     try {
         let ruta = tipoSeleccionado === 'profesores' ? '/api/profesorado' : '/api/alumnado';
         let respuesta = await fetch(BASE_URL + ruta, {headers: {"x-api-key": API_KEY}});
@@ -957,12 +994,28 @@ async function cargarSelectNFC() {
 
         if (json.status === 'success') {
             let opcionesHtml = '<option value="">-- Selecciona --</option>';
+            let encontrados = 0;
+            
             for (let i = 0; i < json.data.length; i++) {
                 let p = json.data[i];
-                let subt = tipoSeleccionado === 'alumnos' ? formatCurso(p.curso) : formatDept(p.departamento);
-                opcionesHtml += `<option value="${p.id}">${p.nombre} ${p.apellidos || ''} - ${subt}</option>`;
+                
+                // Determinamos si la persona ya tiene un NFC válido en Odoo
+                let tieneNfc = Boolean(p.id_NFC && p.id_NFC !== "false" && String(p.id_NFC).trim() !== "");
+                
+                // FILTRO: Solo añadimos al desplegable a los que NO tienen tarjeta
+                if (!tieneNfc) {
+                    let subt = tipoSeleccionado === 'alumnos' ? formatCurso(p.curso) : formatDept(p.departamento);
+                    opcionesHtml += `<option value="${p.id}">${p.nombre} ${p.apellidos || ''} - ${subt}</option>`;
+                    encontrados++;
+                }
             }
-            desplegable.innerHTML = opcionesHtml;
+            
+            // Si el bucle termina y encontrados es 0, todos tienen NFC
+            if (encontrados === 0) {
+                desplegable.innerHTML = '<option value="" disabled>✓ Todos los ' + tipoSeleccionado + ' ya tienen NFC asignado</option>';
+            } else {
+                desplegable.innerHTML = opcionesHtml;
+            }
         }
     } catch (error) {
         desplegable.innerHTML = '<option value="">Error al cargar</option>';
@@ -988,7 +1041,9 @@ async function guardarVinculacion() {
         if (json.status === 'success') {
             feedback.innerHTML = '<span style="color:green;">¡Vinculado bien!</span>';
             document.getElementById('input-nfc-code').value = '';
-        } else feedback.innerHTML = '<span style="color:red;">Error</span>';
+        } else {
+            feedback.innerHTML = '<span style="color:red;">' + (json.mensaje || 'Error') + '</span>';
+        }
     } catch (error) { feedback.innerHTML = '<span style="color:red;">Error de conexión</span>'; }
 }
 
@@ -996,15 +1051,20 @@ function aplicarFiltroBusqueda(inputId, tableBodyId) {
     let input = document.getElementById(inputId);
     if (input) {
         input.addEventListener('input', function (evento) {
-            let textoBuscado = evento.target.value.toLowerCase();
+            let textoBuscado = normalizarTexto(evento.target.value.toLowerCase());
             let filas = document.getElementById(tableBodyId).getElementsByTagName('tr');
 
             for (let i = 0; i < filas.length; i++) {
-                let textoFila = filas[i].innerText.toLowerCase();
+                let textoFila = normalizarTexto(filas[i].innerText.toLowerCase());
                 filas[i].style.display = textoFila.includes(textoBuscado) ? '' : 'none';
             }
         });
     }
+}
+
+// Función auxiliar para normalizar texto (eliminar tildes)
+function normalizarTexto(texto) {
+    return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 function exportarCSV(tableBodyId) {
