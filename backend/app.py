@@ -18,6 +18,8 @@ CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIR = os.path.join(BASE_DIR, 'pagina web', 'Jefatura de estudios')
+SCAN_EST_DIR = os.path.join(BASE_DIR, 'scaners', 'Estudiantes')
+SCAN_PROF_DIR = os.path.join(BASE_DIR, 'scaners', 'Profesores')
 
 uid = None
 models = None
@@ -45,7 +47,7 @@ def asegurar_conexion_odoo():
         return
     
     # No pedir la api key si lo que estas haciendo es pedir la pagina web o sus recursos estaticos
-    rutas_publicas = ['/', '/script.js', '/style.css']
+    rutas_publicas = ['/', '/script.js', '/style.css', '/Estudiantes', '/Estudiantes/script.js', '/Estudiantes/style.css', '/Profesores', '/Profesores/script.js', '/Profesores/style.css', '/AsistenciaEstudiante', '/AsistenciaProfesor', '/GetProfesor']
     if request.path in rutas_publicas:
         return
 
@@ -925,6 +927,35 @@ def serve_style():
     """Sirve el archivo CSS"""
     return send_from_directory(WEB_DIR, 'style.css')
 
+@app.route('/Estudiantes')
+def estudiantes_index():
+    """Sirve la página principal"""
+    return send_from_directory(SCAN_EST_DIR, 'Estudiantes.html')
+
+@app.route('/Estudiantes/script.js')
+def serve_estudiantes_script():
+    """Sirve el archivo JavaScript"""
+    return send_from_directory(SCAN_EST_DIR, 'estudiantes.js')
+
+@app.route('/Estudiantes/style.css')
+def serve_estudiantes_style():
+    """Sirve el archivo CSS"""
+    return send_from_directory(SCAN_EST_DIR, 'style_estudiantes.css')
+
+@app.route('/Profesores')
+def profesores_index():
+    """Sirve la página principal"""
+    return send_from_directory(SCAN_PROF_DIR, 'Profesores.html')
+
+@app.route('/Profesores/script.js')
+def serve_profesores_script():
+    """Sirve el archivo JavaScript"""
+    return send_from_directory(SCAN_PROF_DIR, 'profesores.js')
+
+@app.route('/Profesores/style.css')
+def serve_profesores_style():
+    """Sirve el archivo CSS"""
+    return send_from_directory(SCAN_PROF_DIR, 'style_profesores.css')
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
-    

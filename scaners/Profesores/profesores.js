@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/AsistenciaProfesor';
+const API_URL = '/AsistenciaProfesor';
 
 let operacionActual = '';
 let esperandoNFC = false;
