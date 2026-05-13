@@ -2,7 +2,7 @@
 let BASE_URL = localStorage.getItem('sjr_base_url') || 'http://10.102.7.221:5000';
 let API_KEY = localStorage.getItem('sjr_api_key') || 'kartu_prosim';
 let miGraficoChartJs = null;
-let miGraficoEstado = null; // NUEVA VARIABLE PARA EL SEGUNDO GRÁFICO
+let miGraficoEstado = null;
 let intervalDashboard = null;
 
 let modoEdicion = false;
@@ -185,6 +185,7 @@ function prepararNuevoAlumno() {
     document.getElementById('add-al-nfc').value = '';
     document.getElementById('add-al-feedback').innerHTML = '';
     
+    document.getElementById('grupo-nfc-al').style.display = 'block';
     document.querySelector('#sec-crear-alumno h3').innerText = 'Registrar Nuevo Alumno';
     document.querySelector('#sec-crear-alumno .btn-large').innerText = 'REGISTRAR EN ODOO';
     
@@ -202,6 +203,7 @@ function prepararNuevoProfesor() {
     document.getElementById('add-pr-nfc').value = '';
     document.getElementById('add-pr-feedback').innerHTML = '';
     
+    document.getElementById('grupo-nfc-pr').style.display = 'block';
     document.querySelector('#sec-crear-profesor h3').innerText = 'Registrar Nuevo Profesor';
     document.querySelector('#sec-crear-profesor .btn-large').innerText = 'REGISTRAR EN ODOO';
     
@@ -221,9 +223,10 @@ function modificarPersona(id, tipo) {
         document.getElementById('add-al-curso').value = alumno.curso || '';
         document.getElementById('add-al-dni').value = alumno.dni || '';
         document.getElementById('add-al-fecha').value = alumno.fecha_nacimiento || '';
-        document.getElementById('add-al-nfc').value = alumno.id_NFC || '';
+        document.getElementById('add-al-nfc').value = alumno.id_NFC || ''; 
         document.getElementById('add-al-feedback').innerHTML = '';
         
+        document.getElementById('grupo-nfc-al').style.display = 'none';
         document.querySelector('#sec-crear-alumno h3').innerText = 'Modificar Alumno';
         document.querySelector('#sec-crear-alumno .btn-large').innerText = 'GUARDAR CAMBIOS';
         
@@ -237,9 +240,10 @@ function modificarPersona(id, tipo) {
         document.getElementById('add-pr-apellidos').value = profe.apellidos || '';
         document.getElementById('add-pr-departamento').value = profe.departamento || '';
         document.getElementById('add-pr-dni').value = profe.dni || '';
-        document.getElementById('add-pr-nfc').value = profe.id_NFC || '';
+        document.getElementById('add-pr-nfc').value = profe.id_NFC || ''; 
         document.getElementById('add-pr-feedback').innerHTML = '';
         
+        document.getElementById('grupo-nfc-pr').style.display = 'none';
         document.querySelector('#sec-crear-profesor h3').innerText = 'Modificar Profesor';
         document.querySelector('#sec-crear-profesor .btn-large').innerText = 'GUARDAR CAMBIOS';
         
@@ -275,7 +279,6 @@ async function cargarDashboard() {
         
         let htmlTabla = '';
         
-        let countCentro = 0;
         let countRecreo = 0;
         let countSalida = 0;
 
@@ -284,7 +287,6 @@ async function cargarDashboard() {
             
             if (persona.salida_anticipada) countSalida++;
             else if (persona.recreo) countRecreo++;
-            else countCentro++;
             
             let identificadorNfc = persona.nfc_id || persona.id_NFC;
             let nombrePersona = persona.name || persona.nombre;
@@ -305,14 +307,15 @@ async function cargarDashboard() {
             else htmlTabla += '<span class="badge-error">SIN TAG</span>';
             htmlTabla += '</td>';
 
-            let recreoClase = persona.recreo ? 'nfc-tag' : 'badge-error';
+            // Etiquetas unificadas
+            let recreoClase = persona.recreo ? 'badge-warning' : 'badge-success';
             let recreoTexto = persona.recreo ? 'EN RECREO' : 'EN CENTRO';
             htmlTabla += '<td style="text-align:center;">';
             htmlTabla += '<span class="' + recreoClase + '" style="font-size: 11px;">' + recreoTexto + '</span>';
             htmlTabla += '</td>';
 
-            let salidaClase = persona.salida_anticipada ? 'badge-error' : 'nfc-tag';
-            let salidaTexto = persona.salida_anticipada ? 'HA SALIDO' : 'EN EL CENTRO';
+            let salidaClase = persona.salida_anticipada ? 'badge-error' : 'badge-success';
+            let salidaTexto = persona.salida_anticipada ? 'HA SALIDO' : 'EN CENTRO';
             htmlTabla += '<td style="text-align:center;">';
             htmlTabla += '<span class="' + salidaClase + '" style="font-size: 11px;">' + salidaTexto + '</span>';
             htmlTabla += '</td>';
@@ -321,19 +324,15 @@ async function cargarDashboard() {
         }
 
         document.getElementById('odoo-table-body').innerHTML = htmlTabla;
-
-        document.getElementById('stat-centro').innerText = countCentro;
         document.getElementById('stat-recreo').innerText = countRecreo;
         document.getElementById('stat-salidas').innerText = countSalida;
         
-        let incidenciasTotales = datos.stats ? (datos.stats.incidencias || 0) : 0;
-        document.getElementById('stat-incidencias').innerText = incidenciasTotales;
-
         let respuestaAsis = await fetch(BASE_URL + '/api/asistencia?filtro=' + tipoSeleccionado, {headers: {"x-api-key": API_KEY}});
         let jsonAsistencia = await respuestaAsis.json();
 
         let conteoSalidasSemana = [0, 0, 0, 0, 0];
         let conteoRetrasosSemana = [0, 0, 0, 0, 0];
+        let retrasosHoy = 0; // NUEVO: Variable para contar los retrasos de hoy
         let etiquetasDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
         
         let feedHtml = '';
@@ -351,6 +350,18 @@ async function cargarDashboard() {
 
                 if (partesFecha.length === 3) {
                     let fechaRegistro = new Date(partesFecha[2], partesFecha[1] - 1, partesFecha[0]);
+                    
+                    // NUEVO: Comprobar si la fecha es exactamente la de hoy
+                    if (fechaRegistro.getDate() === hoy.getDate() && 
+                        fechaRegistro.getMonth() === hoy.getMonth() && 
+                        fechaRegistro.getFullYear() === hoy.getFullYear()) {
+                        
+                        // Si es hoy y el tipo contiene 'tarde' o 'retraso', sumamos 1
+                        if (textoTipo.includes('tarde') || textoTipo.includes('retraso')) {
+                            retrasosHoy++;
+                        }
+                    }
+
                     let diferenciaTiempo = hoy.getTime() - fechaRegistro.getTime();
                     let diferenciaDias = Math.floor(diferenciaTiempo / (1000 * 3600 * 24));
 
@@ -367,6 +378,9 @@ async function cargarDashboard() {
                 }
             }
             
+            // NUEVO: Actualizamos la tarjeta de arriba con el total calculado
+            document.getElementById('stat-incidencias').innerText = retrasosHoy;
+            
             let ultimasActividades = listaAsistencia.slice(0, 8);
             if(ultimasActividades.length === 0) {
                 feedHtml = '<div style="text-align:center; color:#64748b; padding: 20px;">No hay actividad reciente.</div>';
@@ -376,10 +390,11 @@ async function cargarDashboard() {
                     let horaLimpia = horaPartida.split(':').slice(0, 2).join(':'); 
                     
                     let tipoLimpio = String(act.tipo).toLowerCase();
-                    let badgeColor = '#3b82f6';
+                    let badgeColor = '#64748b'; // default gris
                     
-                    if (tipoLimpio.includes('salida')) badgeColor = '#e11d48';
-                    else if (tipoLimpio.includes('tarde') || tipoLimpio.includes('retraso')) badgeColor = '#f59e0b';
+                    if (tipoLimpio.includes('salida')) badgeColor = '#e11d48'; // Rojo
+                    else if (tipoLimpio.includes('tarde') || tipoLimpio.includes('retraso')) badgeColor = '#6366f1'; // Indigo
+                    else if (tipoLimpio.includes('recreo')) badgeColor = '#f59e0b'; // Naranja
                     
                     feedHtml += `
                     <div class="activity-item">
@@ -414,14 +429,14 @@ async function cargarDashboard() {
                     {
                         label: 'Salidas Anticipadas',
                         data: conteoSalidasSemana,
-                        backgroundColor: 'rgba(225, 29, 72, 0.85)',
+                        backgroundColor: 'rgba(225, 29, 72, 0.85)', // Rojo #e11d48
                         borderRadius: 4,
                         barThickness: 20
                     },
                     {
                         label: 'Retrasos',
                         data: conteoRetrasosSemana,
-                        backgroundColor: 'rgba(245, 158, 11, 0.85)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.85)', // Indigo #6366f1
                         borderRadius: 4,
                         barThickness: 20
                     }
@@ -465,10 +480,10 @@ async function cargarDashboard() {
         miGraficoEstado = new Chart(ctxEstado, {
             type: 'doughnut',
             data: {
-                labels: ['En Centro', 'En Recreo', 'Han Salido'],
+                labels: ['En Recreo', 'Han Salido'],
                 datasets: [{
-                    data: [countCentro, countRecreo, countSalida],
-                    backgroundColor: ['#10b981', '#f59e0b', '#e11d48'],
+                    data: [countRecreo, countSalida],
+                    backgroundColor: ['#f59e0b', '#e11d48'], // Naranja y Rojo unificados
                     borderWidth: 0,
                     hoverOffset: 6
                 }]
@@ -917,16 +932,16 @@ async function cargarAsistencia() {
                 let urlAvatar = `https://ui-avatars.com/api/?name=${nombreParaAvatar}&background=random&color=fff&size=128`;
                 let imagenHtml = `<img src="${urlAvatar}" class="avatar-img">`;
 
-                let estiloBadge = "background:#f1f5f9; color:#475569; border: 1px solid #e2e8f0;";
+                let claseBadge = "badge-default"; 
                 let textoIncidencia = registro.tipo;
 
                 let tipoTexto = String(registro.tipo).toLowerCase();
 
-                if (tipoTexto.includes('tarde')) {
-                    estiloBadge = "background:#fef08a; color:#854d0e; border: 1px solid #fde047;";
+                if (tipoTexto.includes('tarde') || tipoTexto.includes('retraso')) {
+                    claseBadge = "badge-indigo";
                     textoIncidencia = "Llegada Tarde";
                 } else if (tipoTexto.includes('salida')) {
-                    estiloBadge = "background:#fed7aa; color:#9a3412; border: 1px solid #fdba74;";
+                    claseBadge = "badge-error";
                     textoIncidencia = "Salida Anticipada";
                 }
 
@@ -934,7 +949,7 @@ async function cargarAsistencia() {
                     <td style="text-align:center;">${imagenHtml}</td>
                     <td><span class="user-name">${registro.nombre}</span></td>
                     <td><span class="user-meta" style="text-transform: capitalize;">${registro.colectivo}</span></td>
-                    <td><span class="badge-error" style="${estiloBadge}">${textoIncidencia}</span></td>
+                    <td><span class="${claseBadge}">${textoIncidencia}</span></td>
                     <td><strong>${registro.hora}</strong></td>
                     <td><span style="color:#64748b; font-size:0.85rem;">${registro.notas ? registro.notas : '--'}</span></td>
                 </tr>`;
@@ -949,6 +964,10 @@ async function cargarAsistencia() {
 async function cargarSelectNFC() {
     let tipoSeleccionado = document.getElementById('select-tipo-nfc').value;
     let desplegable = document.getElementById('select-persona-nfc');
+    
+    // Feedback visual mientras carga
+    desplegable.innerHTML = '<option value="">Cargando lista...</option>'; 
+    
     try {
         let ruta = tipoSeleccionado === 'profesores' ? '/api/profesorado' : '/api/alumnado';
         let respuesta = await fetch(BASE_URL + ruta, {headers: {"x-api-key": API_KEY}});
@@ -956,12 +975,28 @@ async function cargarSelectNFC() {
 
         if (json.status === 'success') {
             let opcionesHtml = '<option value="">-- Selecciona --</option>';
+            let encontrados = 0;
+            
             for (let i = 0; i < json.data.length; i++) {
                 let p = json.data[i];
-                let subt = tipoSeleccionado === 'alumnos' ? formatCurso(p.curso) : formatDept(p.departamento);
-                opcionesHtml += `<option value="${p.id}">${p.nombre} ${p.apellidos || ''} - ${subt}</option>`;
+                
+                // Determinamos si la persona ya tiene un NFC válido en Odoo
+                let tieneNfc = Boolean(p.id_NFC && p.id_NFC !== "false" && String(p.id_NFC).trim() !== "");
+                
+                // FILTRO: Solo añadimos al desplegable a los que NO tienen tarjeta
+                if (!tieneNfc) {
+                    let subt = tipoSeleccionado === 'alumnos' ? formatCurso(p.curso) : formatDept(p.departamento);
+                    opcionesHtml += `<option value="${p.id}">${p.nombre} ${p.apellidos || ''} - ${subt}</option>`;
+                    encontrados++;
+                }
             }
-            desplegable.innerHTML = opcionesHtml;
+            
+            // Si el bucle termina y encontrados es 0, todos tienen NFC
+            if (encontrados === 0) {
+                desplegable.innerHTML = '<option value="" disabled>Todos tienen NFC asignado</option>';
+            } else {
+                desplegable.innerHTML = opcionesHtml;
+            }
         }
     } catch (error) {
         desplegable.innerHTML = '<option value="">Error al cargar</option>';
