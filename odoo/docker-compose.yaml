@@ -17,6 +17,7 @@ services:
   odoo-dev:
     image: odoo:18.0
     container_name: odoo-server-ies
+    restart: unless-stopped
     depends_on:
       - db-dev
     ports:
