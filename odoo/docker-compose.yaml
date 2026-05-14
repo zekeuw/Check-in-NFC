@@ -17,7 +17,6 @@ services:
   odoo-dev:
     image: odoo:18.0
     container_name: odoo-server-ies
-    restart: unless-stopped
     depends_on:
       - db-dev
     ports:
@@ -32,7 +31,7 @@ services:
       - ./config/odoo.conf:/etc/odoo/odoo.conf
     networks:
       - odoo_dev_net
-    command: ["odoo", "-c", "/etc/odoo/odoo.conf", "--db_host=db-dev", "-i", "base", "--dev=all"]
+    command: ["odoo", "-c", "/etc/odoo/odoo.conf", "--db_host=db-dev", "-u", "acceso_ies", "--dev=all"]
 
 volumes:
   odoo_dev_db_data:

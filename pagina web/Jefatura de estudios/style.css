@@ -23,11 +23,23 @@ body {
 .login-box {
     background-color: white;
     padding: 40px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     width: 100%;
-    max-width: 400px;
-    border-top: 5px solid #1e40af;
+    max-width: 420px;
+    border-top: 6px solid #1e40af;
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .login-header {
@@ -37,8 +49,10 @@ body {
 
 .login-header h2 {
     color: #1e293b;
-    font-size: 28px;
-    margin-bottom: 5px;
+    font-size: 24px;
+    margin-bottom: 8px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
 }
 
 .login-header p {
@@ -72,12 +86,14 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
 }
 
 .brand {
     font-weight: bold;
     color: white;
     letter-spacing: 0.5px;
+    flex: 1;
 }
 
 .close-btn {
@@ -545,21 +561,67 @@ th.sortable:hover {
 .nfc-tag {
     background-color: #dbeafe;
     color: #1e3a8a;
-    padding: 4px 10px;
+    padding: 6px 14px;
     border-radius: 20px;
     font-size: 12px;
-    font-weight: bold;
+    font-weight: 600;
     border: 1px solid #bfdbfe;
+    display: inline-block;
 }
 
 .badge-error {
     background-color: #ffe4e6;
     color: #e11d48;
-    padding: 4px 10px;
+    padding: 6px 14px;
     border-radius: 20px;
     font-size: 12px;
-    font-weight: bold;
+    font-weight: 600;
     border: 1px solid #fecdd3;
+    display: inline-block;
+}
+
+.badge-indigo {
+    background-color: #e0e7ff;
+    color: #4f46e5;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #c7d2fe;
+    display: inline-block;
+}
+
+.badge-success {
+    background-color: #d1fae5;
+    color: #059669;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #a7f3d0;
+    display: inline-block;
+}
+
+.badge-warning {
+    background-color: #fef3c7;
+    color: #d97706;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #fde68a;
+    display: inline-block;
+}
+
+.badge-default {
+    background-color: #f1f5f9;
+    color: #475569;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #e2e8f0;
+    display: inline-block;
 }
 
 .avatar-img {

@@ -15,8 +15,9 @@
     <div id="login-wrapper" class="login-wrapper">
         <div class="login-box">
             <div class="login-header">
-                <h2>IES SJR</h2>
-                <p>Acceso al Panel de Gestión</p>
+                <h2>IES San Juan de la Rambla</h2>
+                <p>Sistema de Control de Acceso NFC</p>
+                <p style="font-size: 13px; color: #94a3b8; margin-top: 5px;">Panel de Jefatura de Estudios</p>
             </div>
             <form onsubmit="realizarLogin(event)">
                 <div class="form-group">
@@ -52,7 +53,13 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="brand">
-                    IES SJR
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <img src="iconoSJR.svg" alt="Logo" style="width: 32px; height: 32px;" onerror="this.style.display='none'">
+                        <div>
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #f1f5f9;">IES San Juan</h3>
+                            <p style="margin: 0; font-size: 12px; color: #94a3b8;">de la Rambla</p>
+                        </div>
+                    </div>
                 </div>
                 <button class="close-btn" onclick="toggleMenu()">×</button>
             </div>
@@ -120,7 +127,7 @@
                 
                 <div class="page-header">
                     <h2>Panel de Control - Jefatura de Estudios</h2>
-                    <p>Resumen general de asistencia, salidas y control NFC del alumnado.</p>
+                    <p>IES San Juan de la Rambla - Gestión integral de asistencia y control de acceso NFC</p>
                 </div>
 
                 <div id="sec-estadisticas" class="seccion-app active">
