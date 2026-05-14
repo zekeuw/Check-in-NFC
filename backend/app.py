@@ -47,7 +47,10 @@ def asegurar_conexion_odoo():
         return
     
     # No pedir la api key si lo que estas haciendo es pedir la pagina web o sus recursos estaticos
-    rutas_publicas = ['/', '/script.js', '/style.css', '/favicon.ico', '/Estudiantes', '/Estudiantes/script.js', '/Estudiantes/style.css', '/Profesores', '/Profesores/script.js', '/Profesores/style.css', '/AsistenciaEstudiante', '/AsistenciaProfesor', '/GetProfesor']
+    rutas_publicas = ['/', '/script.js', '/style.css', '/favicon.ico', '/iconoSJR.svg', 
+                      '/Estudiantes', '/Estudiantes/script.js', '/Estudiantes/style.css', '/Estudiantes/iconoSJR.svg',
+                      '/Profesores', '/Profesores/script.js', '/Profesores/style.css', '/Profesores/iconoSJR.svg',
+                      '/AsistenciaEstudiante', '/AsistenciaProfesor', '/GetProfesor']
     if request.path in rutas_publicas:
         return
 
@@ -858,6 +861,7 @@ def importar_asistencia():
         return jsonify({'status': 'error', 'mensaje': 'No hay datos para importar'}), 400
         
     exitosos = 0
+    duplicados = 0
     errores = []
 
     try:
@@ -947,25 +951,45 @@ def importar_asistencia():
             datos_odoo['fecha'] = fecha_odoo
         
         try:
-            nuevo_id = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'create', [[datos_odoo]])
-            exitosos += 1
+            # Verificar si ya existe un registro con los mismos datos para evitar duplicados
+            dominio = [[campo_id, '=', persona_id], ['estado_asistencia', '=', estado_asistencia]]
+            if fecha_odoo:
+                dominio.append(['fecha', '=', fecha_odoo])
+            
+            registros_existentes = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'search', [dominio])
+            
+            if registros_existentes:
+                # Ya existe, omitir duplicado silenciosamente
+                duplicados += 1
+            else:
+                # No existe, crear nuevo registro
+                nuevo_id = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'create', [[datos_odoo]])
+                exitosos += 1
         except Exception as e:
-            errores.append(f"Odoo rechazó a {inc.get('nombre')} (Estado intentado: {estado_asistencia}): {str(e)}")
+            errores.append(f"Error al importar {inc.get('nombre')}: {str(e)}")
 
-    mensaje = f"Importados {exitosos} registros correctamente."
-    status = 'success'
+    # Construir mensaje final profesional
+    if exitosos == 0 and duplicados == 0 and len(errores) == 0:
+        mensaje = "No se procesaron registros"
+        status = 'warning'
+    elif exitosos > 0 and duplicados == 0 and len(errores) == 0:
+        mensaje = f"Importación completada exitosamente: {exitosos} registro{'s' if exitosos != 1 else ''} procesado{'s' if exitosos != 1 else ''}"
+        status = 'success'
+    elif exitosos > 0 and duplicados > 0 and len(errores) == 0:
+        mensaje = f"Importación completada: {exitosos} registro{'s' if exitosos != 1 else ''} nuevo{'s' if exitosos != 1 else ''} importado{'s' if exitosos != 1 else ''}, {duplicados} duplicado{'s' if duplicados != 1 else ''} omitido{'s' if duplicados != 1 else ''}"
+        status = 'success'
+    elif exitosos > 0 and len(errores) > 0:
+        mensaje = f"Importación parcial: {exitosos} registro{'s' if exitosos != 1 else ''} importado{'s' if exitosos != 1 else ''}, {len(errores)} error{'es' if len(errores) != 1 else ''}"
+        if duplicados > 0:
+            mensaje += f", {duplicados} duplicado{'s' if duplicados != 1 else ''} omitido{'s' if duplicados != 1 else ''}"
+        status = 'success'
+    else:
+        mensaje = f"Error en la importación: {len(errores)} registro{'s' if len(errores) != 1 else ''} no pudo{'ron' if len(errores) != 1 else ''} procesarse"
+        if duplicados > 0:
+            mensaje += f". {duplicados} duplicado{'s' if duplicados != 1 else ''} omitido{'s' if duplicados != 1 else ''}"
+        status = 'error'
     
-    if errores:
-        print("--- ERRORES DE IMPORTACIÓN ---")
-        for err in errores: print(err)
-        
-        if exitosos == 0:
-            status = 'error'
-            mensaje = f"Fallo al importar. Verifica los estados en la consola."
-        else:
-            mensaje += f" ({len(errores)} fallaron. Mira la consola de Python)."
-        
-    return jsonify({'status': status, 'mensaje': mensaje, 'exitosos': exitosos, 'errores': errores})
+    return jsonify({'status': status, 'mensaje': mensaje, 'exitosos': exitosos, 'duplicados': duplicados, 'errores': errores})
 
 @app.route('/')
 def index():
@@ -982,6 +1006,11 @@ def serve_style():
     """Sirve el archivo CSS"""
     return send_from_directory(WEB_DIR, 'style.css')
 
+@app.route('/iconoSJR.svg')
+def serve_icon():
+    """Sirve el favicon SVG"""
+    return send_from_directory(WEB_DIR, 'iconoSJR.svg')
+
 @app.route('/Estudiantes')
 def estudiantes_index():
     """Sirve la página principal"""
@@ -997,6 +1026,11 @@ def serve_estudiantes_style():
     """Sirve el archivo CSS"""
     return send_from_directory(SCAN_EST_DIR, 'style_estudiantes.css')
 
+@app.route('/Estudiantes/iconoSJR.svg')
+def serve_estudiantes_icon():
+    """Sirve el favicon SVG de Estudiantes"""
+    return send_from_directory(SCAN_EST_DIR, 'iconoSJR.svg')
+
 @app.route('/Profesores')
 def profesores_index():
     """Sirve la página principal"""
@@ -1011,6 +1045,11 @@ def serve_profesores_script():
 def serve_profesores_style():
     """Sirve el archivo CSS"""
     return send_from_directory(SCAN_PROF_DIR, 'style_profesores.css')
+
+@app.route('/Profesores/iconoSJR.svg')
+def serve_profesores_icon():
+    """Sirve el favicon SVG de Profesores"""
+    return send_from_directory(SCAN_PROF_DIR, 'iconoSJR.svg')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)

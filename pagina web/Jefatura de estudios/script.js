@@ -149,6 +149,14 @@ function cambiarSeccion(idSeccion, botonClicado) {
         botonClicado.classList.add('active');
     }
 
+    // Resetear modo edición cuando se navega a otra sección que no sea crear-alumno o crear-profesor
+    if (idSeccion !== 'crear-alumno' && idSeccion !== 'crear-profesor') {
+        if (modoEdicion) {
+            modoEdicion = false;
+            idPersonaEditando = null;
+        }
+    }
+
     if (idSeccion === 'estadisticas') cargarDashboard();
     if (idSeccion === 'alumnado') cargarAlumnado();
     if (idSeccion === 'profesorado') cargarProfesorado();
@@ -191,6 +199,7 @@ function prepararNuevoAlumno() {
     document.getElementById('add-al-nfc').value = '';
     document.getElementById('add-al-feedback').innerHTML = '';
     
+    document.getElementById('grupo-nfc-al').style.display = 'block';
     document.querySelector('#sec-crear-alumno h3').innerText = 'Registrar Nuevo Alumno';
     document.querySelector('#sec-crear-alumno .btn-large').innerText = 'REGISTRAR EN ODOO';
     
@@ -208,6 +217,7 @@ function prepararNuevoProfesor() {
     document.getElementById('add-pr-nfc').value = '';
     document.getElementById('add-pr-feedback').innerHTML = '';
     
+    document.getElementById('grupo-nfc-pr').style.display = 'block';
     document.querySelector('#sec-crear-profesor h3').innerText = 'Registrar Nuevo Profesor';
     document.querySelector('#sec-crear-profesor .btn-large').innerText = 'REGISTRAR EN ODOO';
     
