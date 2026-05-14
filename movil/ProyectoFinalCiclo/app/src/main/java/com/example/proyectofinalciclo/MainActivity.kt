@@ -29,6 +29,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 class MainActivity : AppCompatActivity() {
 
@@ -141,6 +142,8 @@ class MainActivity : AppCompatActivity() {
 
     private val client = OkHttpClient()
 
+    val apiKey = "kartu_prosim"
+
     private fun verificarSalidaRecreo(nfcId: String) {
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -156,6 +159,7 @@ class MainActivity : AppCompatActivity() {
                 val request = Request.Builder()
                     .url(url)
                     .post(body)
+                    .addHeader("x-api-key", apiKey)
                     .build()
 
                 val response = client.newCall(request).execute()
@@ -209,7 +213,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    estado.text = "Error de conexión: Verifica la red y que el servidor esté encendido."
+                    estado.text = e.toString()
                     e.printStackTrace()
                 }
             }
@@ -230,6 +234,7 @@ class MainActivity : AppCompatActivity() {
 
                 val request = Request.Builder()
                     .url(url)
+                    .addHeader("x-api-key", apiKey)
                     .post(body)
                     .build()
 
