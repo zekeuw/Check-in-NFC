@@ -609,6 +609,45 @@ def vincular_nfc():
             
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': f'Error al comunicar con Odoo: {str(e)}'}), 500
+
+@app.route('/api/desvincular_nfc', methods=['POST'])
+def desvincular_nfc():
+    if not uid: 
+        return jsonify({'status': 'error', 'mensaje': 'No hay sesión de Odoo activa'}), 401
+
+    datos = request.get_json()
+    
+    if not datos:
+        return jsonify({'status': 'error', 'mensaje': 'No se enviaron datos JSON'}), 400
+
+    registro_id = datos.get('id')
+    tipo = datos.get('tipo', 'alumnos')
+
+    if not registro_id:
+        return jsonify({'status': 'error', 'mensaje': 'El campo "id" es obligatorio'}), 400
+
+    try:
+        registro_id = int(registro_id)
+    except ValueError:
+        return jsonify({'status': 'error', 'mensaje': 'El campo "id" debe ser un número entero válido'}), 400
+
+    if tipo not in ['alumnos', 'profesores']:
+        return jsonify({'status': 'error', 'mensaje': 'El "tipo" debe ser "alumnos" o "profesores"'}), 400
+
+    modelo_actual = 'acceso_ies.profesor' if tipo == 'profesores' else 'acceso_ies.estudiante'
+
+    try:
+        # Establecer id_NFC como False (vacío en Odoo)
+        resultado = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo_actual, 'write', 
+                                      [[registro_id], {'id_NFC': False}])
+        
+        if resultado:
+            return jsonify({'status': 'success', 'mensaje': 'NFC desvinculado correctamente'}), 200
+        else:
+            return jsonify({'status': 'error', 'mensaje': 'No se encontró el registro o no se pudo actualizar'}), 404
+            
+    except Exception as e:
+        return jsonify({'status': 'error', 'mensaje': f'Error al comunicar con Odoo: {str(e)}'}), 500
     
 @app.route("/AsistenciaProfesor", methods=['POST'])
 def Asistencia_profesor():
@@ -984,7 +1023,7 @@ def importar_asistencia():
             mensaje += f", {duplicados} duplicado{'s' if duplicados != 1 else ''} omitido{'s' if duplicados != 1 else ''}"
         status = 'success'
     else:
-        mensaje = f"Error en la importación: {len(errores)} registro{'s' if len(errores) != 1 else ''} no pudo{'ron' if len(errores) != 1 else ''} procesarse"
+        mensaje = f"Error en la importación: {len(errores)} registro{'s' if len(errores) != 1 else ''} no {'pudieron' if len(errores) != 1 else 'pudo'} procesarse"
         if duplicados > 0:
             mensaje += f". {duplicados} duplicado{'s' if duplicados != 1 else ''} omitido{'s' if duplicados != 1 else ''}"
         status = 'error'

@@ -32,6 +32,8 @@ function realizarLogin(e) {
     let user = document.getElementById('login-user').value;
     let pass = document.getElementById('login-pass').value;
     
+    console.log('Intentando login con usuario:', user); // Debug
+    
     if(user === 'admin' && pass === 'admin') {
         localStorage.setItem('sjr_logged_in', 'true');
         document.getElementById('login-wrapper').style.display = 'none';
@@ -70,9 +72,15 @@ function iniciarApp() {
 }
 
 function togglePasswordVisibility(inputId, iconShowId, iconHideId) {
+    console.log('Toggle password visibility'); // Debug
     let passInput = document.getElementById(inputId);
     let eyeShow = document.getElementById(iconShowId);
     let eyeHide = document.getElementById(iconHideId);
+
+    if (!passInput || !eyeShow || !eyeHide) {
+        console.error('Elementos no encontrados:', { passInput, eyeShow, eyeHide });
+        return;
+    }
 
     if (passInput.type === 'password') {
         passInput.type = 'text';
@@ -199,6 +207,10 @@ function prepararNuevoAlumno() {
     document.getElementById('add-al-nfc').value = '';
     document.getElementById('add-al-feedback').innerHTML = '';
     
+    // Habilitar todos los campos en modo creación
+    document.getElementById('add-al-dni').disabled = false;
+    document.getElementById('add-al-fecha').disabled = false;
+    
     document.getElementById('grupo-nfc-al').style.display = 'block';
     document.querySelector('#sec-crear-alumno h3').innerText = 'Registrar Nuevo Alumno';
     document.querySelector('#sec-crear-alumno .btn-large').innerText = 'REGISTRAR EN ODOO';
@@ -216,6 +228,9 @@ function prepararNuevoProfesor() {
     document.getElementById('add-pr-dni').value = '';
     document.getElementById('add-pr-nfc').value = '';
     document.getElementById('add-pr-feedback').innerHTML = '';
+    
+    // Habilitar todos los campos en modo creación
+    document.getElementById('add-pr-dni').disabled = false;
     
     document.getElementById('grupo-nfc-pr').style.display = 'block';
     document.querySelector('#sec-crear-profesor h3').innerText = 'Registrar Nuevo Profesor';
@@ -240,6 +255,10 @@ function modificarPersona(id, tipo) {
         document.getElementById('add-al-nfc').value = alumno.id_NFC || ''; 
         document.getElementById('add-al-feedback').innerHTML = '';
         
+        // Bloquear campos que no deben modificarse
+        document.getElementById('add-al-dni').disabled = true;
+        document.getElementById('add-al-fecha').disabled = true;
+        
         document.getElementById('grupo-nfc-al').style.display = 'none';
         document.querySelector('#sec-crear-alumno h3').innerText = 'Modificar Alumno';
         document.querySelector('#sec-crear-alumno .btn-large').innerText = 'GUARDAR CAMBIOS';
@@ -256,6 +275,9 @@ function modificarPersona(id, tipo) {
         document.getElementById('add-pr-dni').value = profe.dni || '';
         document.getElementById('add-pr-nfc').value = profe.id_NFC || ''; 
         document.getElementById('add-pr-feedback').innerHTML = '';
+        
+        // Bloquear campos que no deben modificarse
+        document.getElementById('add-pr-dni').disabled = true;
         
         document.getElementById('grupo-nfc-pr').style.display = 'none';
         document.querySelector('#sec-crear-profesor h3').innerText = 'Modificar Profesor';
@@ -1004,7 +1026,6 @@ async function cargarSelectNFC() {
 
         if (json.status === 'success') {
             let opcionesHtml = '<option value="">-- Selecciona --</option>';
-            let encontrados = 0;
             
             for (let i = 0; i < json.data.length; i++) {
                 let p = json.data[i];
@@ -1012,20 +1033,16 @@ async function cargarSelectNFC() {
                 // Determinamos si la persona ya tiene un NFC válido en Odoo
                 let tieneNfc = Boolean(p.id_NFC && p.id_NFC !== "false" && String(p.id_NFC).trim() !== "");
                 
-                // FILTRO: Solo añadimos al desplegable a los que NO tienen tarjeta
-                if (!tieneNfc) {
-                    let subt = tipoSeleccionado === 'alumnos' ? formatCurso(p.curso) : formatDept(p.departamento);
-                    opcionesHtml += `<option value="${p.id}">${p.nombre} ${p.apellidos || ''} - ${subt}</option>`;
-                    encontrados++;
-                }
+                let subt = tipoSeleccionado === 'alumnos' ? formatCurso(p.curso) : formatDept(p.departamento);
+                
+                // Añadimos TODOS los usuarios, indicando si tienen NFC o no
+                let indicadorNfc = tieneNfc ? '🔗 ' : '⚠️ ';
+                let nfcInfo = tieneNfc ? ` (NFC: ${p.id_NFC})` : ' (Sin NFC)';
+                
+                opcionesHtml += `<option value="${p.id}" data-tiene-nfc="${tieneNfc}">${indicadorNfc}${p.nombre} ${p.apellidos || ''} - ${subt}${nfcInfo}</option>`;
             }
             
-            // Si el bucle termina y encontrados es 0, todos tienen NFC
-            if (encontrados === 0) {
-                desplegable.innerHTML = '<option value="" disabled>✓ Todos los ' + tipoSeleccionado + ' ya tienen NFC asignado</option>';
-            } else {
-                desplegable.innerHTML = opcionesHtml;
-            }
+            desplegable.innerHTML = opcionesHtml;
         }
     } catch (error) {
         desplegable.innerHTML = '<option value="">Error al cargar</option>';
@@ -1051,10 +1068,50 @@ async function guardarVinculacion() {
         if (json.status === 'success') {
             feedback.innerHTML = '<span style="color:green;">¡Vinculado bien!</span>';
             document.getElementById('input-nfc-code').value = '';
+            // Recargar el select para actualizar los indicadores
+            setTimeout(() => cargarSelectNFC(), 1000);
         } else {
             feedback.innerHTML = '<span style="color:red;">' + (json.mensaje || 'Error') + '</span>';
         }
     } catch (error) { feedback.innerHTML = '<span style="color:red;">Error de conexión</span>'; }
+}
+
+async function desvincularNFC() {
+    let tipo = document.getElementById('select-tipo-nfc').value;
+    let idPersona = document.getElementById('select-persona-nfc').value;
+    let feedback = document.getElementById('nfc-feedback');
+
+    if (idPersona === '') { 
+        feedback.innerHTML = '<span style="color:red;">Debes seleccionar una persona</span>'; 
+        return; 
+    }
+
+    // Confirmar acción
+    if (!confirm('¿Estás seguro de desvincular la tarjeta NFC de esta persona?')) {
+        return;
+    }
+
+    feedback.innerHTML = '<span style="color:blue;">Desvinculando...</span>';
+
+    try {
+        let respuesta = await fetch(BASE_URL + '/api/desvincular_nfc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', "x-api-key": API_KEY },
+            body: JSON.stringify({ id: parseInt(idPersona), tipo: tipo })
+        });
+        let json = await respuesta.json();
+
+        if (json.status === 'success') {
+            feedback.innerHTML = '<span style="color:green;">¡NFC desvinculado correctamente!</span>';
+            document.getElementById('input-nfc-code').value = '';
+            // Recargar el select para actualizar los indicadores
+            setTimeout(() => cargarSelectNFC(), 1000);
+        } else {
+            feedback.innerHTML = '<span style="color:red;">' + (json.mensaje || 'Error al desvincular') + '</span>';
+        }
+    } catch (error) { 
+        feedback.innerHTML = '<span style="color:red;">Error de conexión</span>'; 
+    }
 }
 
 function aplicarFiltroBusqueda(inputId, tableBodyId) {

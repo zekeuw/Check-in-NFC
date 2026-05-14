@@ -28,8 +28,14 @@
                     <div class="password-input-wrapper">
                         <input type="password" id="login-pass" class="form-input" required placeholder="••••••••">
                         <button type="button" class="btn-show-pass" onclick="togglePasswordVisibility('login-pass', 'eye-login-show', 'eye-login-hide')" tabindex="-1" title="Mostrar/Ocultar contraseña">
-                            <svg id="eye-login-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                            <svg id="eye-login-hide" style="display: none;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                            <svg id="eye-login-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <svg id="eye-login-hide" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
                         </button>
                     </div>
                 </div>
@@ -535,16 +541,19 @@
                                 <input type="text" id="input-nfc-code" class="form-input"
                                     placeholder="Escanea la tarjeta o pulsa Enter...">
                             </div>
-                            <button class="btn-action btn-large" onclick="guardarVinculacion()">GUARDAR VINCULACIÓN</button>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn-action btn-large" style="flex: 1;" onclick="guardarVinculacion()">VINCULAR NFC</button>
+                                <button class="btn-borrar btn-large" style="flex: 1;" onclick="desvincularNFC()">DESVINCULAR NFC</button>
+                            </div>
                             <div id="nfc-feedback" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
                         </div>
                         <div class="panel">
                             <h3>Instrucciones</h3>
                             <ol style="line-height: 1.8; color: #475569; padding-left: 20px;">
-                                <li>Selecciona si es Alumno o Profesor.</li>
-                                <li>Busca a la persona en el listado.</li>
-                                <li>Haz clic en la casilla de "Código NFC".</li>
-                                <li>Pasa la tarjeta por el lector (se guardará automáticamente).</li>
+                                <li><strong>Para vincular:</strong> Selecciona una persona sin NFC (⚠️), escanea la tarjeta y pulsa "VINCULAR NFC".</li>
+                                <li><strong>Para desvincular:</strong> Selecciona una persona con NFC (🔗) y pulsa "DESVINCULAR NFC". No se necesita escanear tarjeta.</li>
+                                <li>Los usuarios con 🔗 ya tienen tarjeta asignada.</li>
+                                <li>Los usuarios con ⚠️ no tienen tarjeta asignada.</li>
                             </ol>
                             <div class="scan-area" id="console-log" style="display:block;">
                                 > Sistema NFC listo.<br>
