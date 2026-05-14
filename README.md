@@ -23,22 +23,22 @@ Sistema completo de control de acceso y gestión de asistencia que permite:
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    FRONTEND WEB                         │
-│  Panel de Jefatura + Escáneres NFC (Estudiantes/Profes)│
+│  Panel de Jefatura + Escáneres NFC (Estudiantes/Profes) │
 └────────────────────┬────────────────────────────────────┘
                      │ HTTP/REST API
 ┌────────────────────▼────────────────────────────────────┐
 │                  BACKEND FLASK                          │
-│  • API REST (Python 3.8+)                              │
-│  • Validaciones de datos                               │
-│  • Autenticación con API Key                           │
-│  • Gestión de asistencias                              │
+│  • API REST (Python 3.8+)                               │
+│  • Validaciones de datos                                │
+│  • Autenticación con API Key                            │
+│  • Gestión de asistencias                               │
 └────────────────────┬────────────────────────────────────┘
                      │ XML-RPC
 ┌────────────────────▼────────────────────────────────────┐
 │                  ODOO 18.0                              │
-│  • Base de datos PostgreSQL                            │
-│  • Módulo personalizado: acceso_ies                    │
-│  • Modelos: Estudiantes, Profesores, Asistencias      │
+│  • Base de datos PostgreSQL                             │
+│  • Módulo personalizado: acceso_ies                     │
+│  • Modelos: Estudiantes, Profesores, Asistencias        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -141,7 +141,7 @@ Check-in-NFC-Version-Previa-a-Final/
 ### 1. Clonar el Repositorio
 
 ```bash
-git clone https://github.com/tu-usuario/Check-in-NFC-IES.git
+git clone https://github.com/zekeuw/Check-in-NFC.git
 cd Check-in-NFC-IES
 ```
 
@@ -243,21 +243,21 @@ python3 -m pytest test_app.py --quiet
 
 ### Vinculación de Tarjetas NFC
 
-1. Ir a **Vinculación NFC**
-2. Seleccionar tipo (Alumno/Profesor)
-3. Seleccionar persona de la lista
-4. Escanear tarjeta NFC o introducir código
-5. Confirmar vinculación
+1. Crear un Alumno/Profesor
+2. Ir a **Vinculación NFC**
+3. Seleccionar tipo (Alumno/Profesor)
+4. Seleccionar persona de la lista
+5. Escanear tarjeta NFC o introducir código
+6. Confirmar vinculación
 
 ### Registro de Asistencia
 
 **Estudiantes:**
+- Seleccionar la acción deseada
 - Acercar tarjeta al lector en terminal de estudiantes
-- Sistema registra automáticamente:
-  - ✅ Llegada tarde (fuera de horario)
-  - ✅ Salida anticipada (si tiene permiso)
 
 **Profesores:**
+- Seleccionar la acción deseada
 - Acercar tarjeta al lector en terminal de profesores
 - Sistema registra:
   - ✅ Llegada al centro
@@ -404,23 +404,13 @@ python3 -m pytest --version
 - [GUIA_USUARIO.md](GUIA_USUARIO.md) - Manual de usuario
 - [VALIDACIONES_IMPLEMENTADAS.md](VALIDACIONES_IMPLEMENTADAS.md) - Detalle de validaciones
 
-## 🤝 Contribuir
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add: AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
 ## 📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver archivo `LICENSE` para más detalles.
 
 ## 👥 Autores
 
-- **Equipo de Desarrollo** - IES San Juan de la Rambla
+- **Equipo de Desarrollo** - NFCitos
 - **Proyecto Final de Ciclo** - 2026
 
 ## 🙏 Agradecimientos
@@ -429,15 +419,9 @@ Este proyecto está bajo la Licencia MIT. Ver archivo `LICENSE` para más detall
 - Comunidad de Odoo por la documentación
 - Chart.js por la librería de gráficos
 - UI Avatars por la API de avatares
+- A la máquina de café de la entrada
 
-## 📞 Contacto
-
-Para dudas o sugerencias sobre el proyecto:
-- 📧 Email: contacto@iessanjuan.es
-- 🌐 Web: https://www.iessanjuandelarambla.es
-
----
 
 **Nota**: Este proyecto está diseñado específicamente para entornos educativos y puede requerir adaptaciones para otros contextos.
 
-Desarrollado con ❤️ por el equipo del IES San Juan de la Rambla
+Desarrollado con ❤️ por el maravilloso y muy guay equipo de los NFCitos
