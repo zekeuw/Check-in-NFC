@@ -1052,10 +1052,30 @@ async function cargarSelectNFC() {
 async function guardarVinculacion() {
     let tipo = document.getElementById('select-tipo-nfc').value;
     let idPersona = document.getElementById('select-persona-nfc').value;
-    let codigoNfc = document.getElementById('input-nfc-code').value;
+    let codigoNfc = document.getElementById('input-nfc-code').value.trim();
     let feedback = document.getElementById('nfc-feedback');
 
-    if (idPersona === '' || codigoNfc === '') { feedback.innerHTML = '<span style="color:red;">Faltan campos</span>'; return; }
+    if (idPersona === '') { 
+        feedback.innerHTML = '<span style="color:red;">Debes seleccionar una persona</span>'; 
+        return; 
+    }
+    
+    if (codigoNfc === '') { 
+        feedback.innerHTML = '<span style="color:red;">Debes escanear o escribir un código NFC</span>'; 
+        return; 
+    }
+
+    // Verificar si la persona seleccionada ya tiene NFC asignado
+    let selectElement = document.getElementById('select-persona-nfc');
+    let selectedOption = selectElement.options[selectElement.selectedIndex];
+    let tieneNfc = selectedOption.getAttribute('data-tiene-nfc') === 'true';
+    
+    if (tieneNfc) {
+        feedback.innerHTML = '<span style="color:orange;">⚠️ Esta persona YA tiene un NFC asignado. Primero desvincúlalo si quieres asignar uno nuevo.</span>';
+        return;
+    }
+
+    feedback.innerHTML = '<span style="color:blue;">Vinculando...</span>';
 
     try {
         let respuesta = await fetch(BASE_URL + '/api/vincular_nfc', {
@@ -1066,14 +1086,16 @@ async function guardarVinculacion() {
         let json = await respuesta.json();
 
         if (json.status === 'success') {
-            feedback.innerHTML = '<span style="color:green;">¡Vinculado bien!</span>';
+            feedback.innerHTML = '<span style="color:green;">✓ NFC vinculado correctamente!</span>';
             document.getElementById('input-nfc-code').value = '';
             // Recargar el select para actualizar los indicadores
             setTimeout(() => cargarSelectNFC(), 1000);
         } else {
             feedback.innerHTML = '<span style="color:red;">' + (json.mensaje || 'Error') + '</span>';
         }
-    } catch (error) { feedback.innerHTML = '<span style="color:red;">Error de conexión</span>'; }
+    } catch (error) { 
+        feedback.innerHTML = '<span style="color:red;">Error de conexión</span>'; 
+    }
 }
 
 async function desvincularNFC() {
@@ -1084,6 +1106,16 @@ async function desvincularNFC() {
     if (idPersona === '') { 
         feedback.innerHTML = '<span style="color:red;">Debes seleccionar una persona</span>'; 
         return; 
+    }
+
+    // Verificar si la persona seleccionada tiene NFC asignado
+    let selectElement = document.getElementById('select-persona-nfc');
+    let selectedOption = selectElement.options[selectElement.selectedIndex];
+    let tieneNfc = selectedOption.getAttribute('data-tiene-nfc') === 'true';
+    
+    if (!tieneNfc) {
+        feedback.innerHTML = '<span style="color:red;">❌ Esta persona NO tiene NFC asignado. No hay nada que desvincular.</span>';
+        return;
     }
 
     // Confirmar acción

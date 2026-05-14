@@ -637,6 +637,19 @@ def desvincular_nfc():
     modelo_actual = 'acceso_ies.profesor' if tipo == 'profesores' else 'acceso_ies.estudiante'
 
     try:
+        # Primero verificar que el usuario tenga un NFC asignado
+        persona = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo_actual, 'read', 
+                                    [[registro_id], ['id_NFC']])
+        
+        if not persona:
+            return jsonify({'status': 'error', 'mensaje': 'No se encontró el registro'}), 404
+        
+        nfc_actual = persona[0].get('id_NFC')
+        
+        # Verificar si tiene NFC válido
+        if not nfc_actual or nfc_actual == False or str(nfc_actual).strip() == '' or str(nfc_actual).lower() == 'false':
+            return jsonify({'status': 'error', 'mensaje': 'Esta persona no tiene ningún NFC asignado para desvincular'}), 400
+        
         # Establecer id_NFC como False (vacío en Odoo)
         resultado = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo_actual, 'write', 
                                       [[registro_id], {'id_NFC': False}])
@@ -644,7 +657,7 @@ def desvincular_nfc():
         if resultado:
             return jsonify({'status': 'success', 'mensaje': 'NFC desvinculado correctamente'}), 200
         else:
-            return jsonify({'status': 'error', 'mensaje': 'No se encontró el registro o no se pudo actualizar'}), 404
+            return jsonify({'status': 'error', 'mensaje': 'No se pudo actualizar el registro'}), 404
             
     except Exception as e:
         return jsonify({'status': 'error', 'mensaje': f'Error al comunicar con Odoo: {str(e)}'}), 500
