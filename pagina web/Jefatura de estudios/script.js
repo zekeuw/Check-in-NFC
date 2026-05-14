@@ -129,6 +129,25 @@ function formatCurso(clave) {
     return '--';
 }
 
+function mostrarFeedback(elementoFeedback, mensaje, autoOcultar = true, tiempoMs = 8000) {
+    if (!elementoFeedback) return;
+    
+    elementoFeedback.innerHTML = mensaje;
+    elementoFeedback.style.display = 'block';
+    elementoFeedback.style.opacity = '1';
+    elementoFeedback.style.transition = 'opacity 0.5s ease';
+    
+    if (autoOcultar) {
+        setTimeout(() => {
+            elementoFeedback.style.opacity = '0';
+            setTimeout(() => {
+                elementoFeedback.innerHTML = '';
+                elementoFeedback.style.display = 'none';
+            }, 500);
+        }, tiempoMs);
+    }
+}
+
 function formatDept(clave) {
     if (DEPT_MAP[clave]) return DEPT_MAP[clave];
     if (clave) return clave;
@@ -823,7 +842,7 @@ async function crearAlumnoDesdeWeb() {
         let json = await respuesta.json();
 
         if (json.status === 'exito' || json.status === 'success') {
-            feedback.innerHTML = '<span style="color:green;">' + (modoEdicion ? 'Cambios guardados' : 'Alumno guardado') + ' correctamente. Redirigiendo...</span>';
+            mostrarFeedback(feedback, '<span style="color:green;">' + (modoEdicion ? 'Cambios guardados' : 'Alumno guardado') + ' correctamente. Redirigiendo...</span>', true, 2500);
             setTimeout(() => {
                 cargarAlumnado();
                 cambiarSeccion('alumnado', document.querySelectorAll('.nav-btn')[1]);
@@ -945,7 +964,7 @@ async function crearProfesorDesdeWeb() {
         let json = await respuesta.json();
 
         if (json.status === 'exito' || json.status === 'success') {
-            feedback.innerHTML = '<span style="color:green;">' + (modoEdicion ? 'Cambios guardados' : 'Profesor guardado') + ' correctamente. Redirigiendo...</span>';
+            mostrarFeedback(feedback, '<span style="color:green;">' + (modoEdicion ? 'Cambios guardados' : 'Profesor guardado') + ' correctamente. Redirigiendo...</span>', true, 2500);
             setTimeout(() => {
                 cargarProfesorado();
                 cambiarSeccion('profesorado', document.querySelectorAll('.nav-btn')[2]);
@@ -1250,12 +1269,14 @@ async function procesarImportacionCSV(inputElement) {
             if (json.status === 'success' || json.status === 'exito') {
                 if (feedback) {
                     let colorMensaje = json.errores.length > 0 ? '#ca8a04' : 'green'; 
-                    feedback.innerHTML = `<span style="color:${colorMensaje}; font-weight:bold;">${json.mensaje}</span>` + htmlErrores;
+                    let mensajeFinal = `<span style="color:${colorMensaje}; font-weight:bold;">${json.mensaje}</span>` + htmlErrores;
+                    mostrarFeedback(feedback, mensajeFinal, true, 8000);
                 }
                 cargarAsistencia();
             } else {
                 if (feedback) {
-                    feedback.innerHTML = `<span style="color:red; font-weight:bold;">Error: ${json.mensaje || 'Fallo al importar'}</span>` + htmlErrores;
+                    let mensajeFinal = `<span style="color:red; font-weight:bold;">Error: ${json.mensaje || 'Fallo al importar'}</span>` + htmlErrores;
+                    mostrarFeedback(feedback, mensajeFinal, true, 8000);
                 }
             }
             
