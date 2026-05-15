@@ -410,12 +410,16 @@ python3 -m pytest --version
 
 ## Agradecimientos
 
-- IES San Juan de la Rambla por el apoyo al proyecto
+- IES San Juan de la Rambla por el "apoyo" al proyecto
 - Comunidad de Odoo por la documentación
 - Chart.js por la librería de gráficos
 - UI Avatars por la API de avatares
 - A la máquina de café de la entrada
+- A las metricas de la memoria a 3 horas de entregar el proyecto :)
 
+ y por ultimo y no menos importante
+
+- A la cafetería del instituto
 
 **Nota**: Este proyecto está diseñado específicamente para entornos educativos y puede requerir adaptaciones para otros contextos.
 
