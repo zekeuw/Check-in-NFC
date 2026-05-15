@@ -58,6 +58,7 @@ class Estudiante(models.Model):
     dni = fields.Char(string='DNI', size=9)
     id_NFC = fields.Char(string='ID NFC', index=True)
     recreo = fields.Boolean(string='Permiso Recreo', default=True)
+    en_recreo = fields.Boolean(string='Está en Recreo', default=False)
     salida_anticipada = fields.Boolean(string='Salida Anticipada', default=False)
     
     registro_ids = fields.One2many(
@@ -98,4 +99,6 @@ class AsistenciaEstudiante(models.Model):
     estado_asistencia = fields.Selection([
         ('llego tarde', 'Llegó Tarde'),
         ('salida anticipada', 'Salida Anticipada'),
+        ('sale recreo', 'Sale al Recreo'),
+        ('vuelve recreo', 'Vuelve del Recreo'),
     ], string='Estado de Asistencia', required=True)

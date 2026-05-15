@@ -334,12 +334,6 @@ async function cargarDashboard() {
         
         let htmlTabla = '';
         
-        // Verificar si es horario de recreo (ejemplo: 11:00-11:30)
-        let ahora = new Date();
-        let horaActual = ahora.getHours();
-        let minutoActual = ahora.getMinutes();
-        let esHorarioRecreo = (horaActual === 11 && minutoActual >= 0 && minutoActual < 30);
-        
         let countRecreo = 0;
         let countSalida = 0;
 
@@ -347,7 +341,7 @@ async function cargarDashboard() {
             let persona = listaPersonas[i];
             
             if (persona.salida_anticipada) countSalida++;
-            else if (persona.recreo && esHorarioRecreo) countRecreo++;
+            else if (persona.en_recreo) countRecreo++;
             
             let identificadorNfc = persona.nfc_id || persona.id_NFC;
             let nombrePersona = persona.name || persona.nombre;
@@ -373,7 +367,7 @@ async function cargarDashboard() {
             if (persona.salida_anticipada) {
                 recreoClase = 'badge-error';
                 recreoTexto = 'HA SALIDO';
-            } else if (persona.recreo && esHorarioRecreo) {
+            } else if (persona.en_recreo) {
                 recreoClase = 'badge-warning';
                 recreoTexto = 'EN RECREO';
             } else {

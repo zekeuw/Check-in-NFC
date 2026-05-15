@@ -428,28 +428,100 @@ def salida_recreo():
     if not uid: return jsonify({'status': 'error', 'mensaje': 'Sin conexión Odoo'}), 500
     datos = request.get_json()
     try:
+        # Soportar tanto 'nfc' como 'id_NFC' para compatibilidad con diferentes partes de la app
+        nfc_id = datos.get("nfc") or datos.get("id_NFC")
+        print(nfc_id)
+        if not nfc_id:
+            return jsonify({"status": "error", "mensaje": "Falta el campo NFC en la solicitud"}), 400
+        
+        # Buscar estudiante
         user = ejecutar_odoo_kw(DB, uid, PASSWORD,
                                  'acceso_ies.estudiante', 'search_read',
-                                 [[['id_NFC', '=', datos["nfc"]]]],
-                                 {'fields': ['id', 'nombre','apellidos', 'recreo', 'fecha_nacimiento', 'curso'], 'limit':1})
+                                 [[['id_NFC', '=', nfc_id]]],
+                                 {'fields': ['id', 'nombre','apellidos', 'recreo', 'en_recreo', 'fecha_nacimiento', 'curso'], 'limit':1})
         
-        if user and user[0].get("fecha_nacimiento"):
-            fecha = datetime.strptime(user[0]['fecha_nacimiento'], '%Y-%m-%d')
+        if not user:
+            # Verificar si es un profesor
+            profesores = ejecutar_odoo_kw(DB, uid, PASSWORD,
+                                     'acceso_ies.profesor', 'search_read',
+                                     [[['id_NFC', '=', nfc_id]]],
+                                     {'fields': ['nombre'], 'limit': 1})
+            if profesores:
+                return jsonify({'status': 'error', 'mensaje': f'Esta tarjeta pertenece al profesor {profesores[0]["nombre"]}. Los profesores no usan el sistema de recreo.'}), 404
+            return jsonify({"status": "error", "mensaje": "Tarjeta NFC no registrada en el sistema."}), 404
+        
+        estudiante = user[0]
+        
+        # Calcular edad si tiene fecha de nacimiento
+        tiene_permiso = estudiante.get('recreo', False)
+        if not tiene_permiso and estudiante.get('fecha_nacimiento'):
+            fecha = datetime.strptime(estudiante['fecha_nacimiento'], '%Y-%m-%d')
             hoy = datetime.now()
-            
             edad = hoy.year - fecha.year - ((hoy.month, hoy.day) < (fecha.month, fecha.day))
+            tiene_permiso = edad >= 18
             
-            nuevo_estado = True if edad >= 18 else False
-            
-            ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'write', 
-                              [[user[0]['id']], {'recreo': nuevo_estado}])
-            
-            user[0]['recreo'] = nuevo_estado
-            return jsonify({"status": "success", "data": user})
+            # Actualizar el campo recreo si tiene 18 o más años
+            if tiene_permiso:
+                ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'write', 
+                                [[estudiante['id']], {'recreo': True}])
+                estudiante['recreo'] = True
         
-        return jsonify({"status": "error", "data": "Usuario no encontrado o sin fecha"})
+        # Verificar si tiene permiso de recreo (calculado o guardado)
+        if not tiene_permiso:
+            return jsonify({
+                "status": "error", 
+                "mensaje": "Acceso denegado: El estudiante no está autorizado para salir al recreo",
+                "razon": "Menor de 18 años - Permiso de recreo no concedido"
+            }), 403
+        
+        # Obtener registros de recreo de hoy
+        hoy_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        hoy_fin = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        registros_hoy = ejecutar_odoo_kw(DB, uid, PASSWORD,
+                                          'acceso_ies.asistencia_estudiante', 'search_read',
+                                          [[['estudiante_id', '=', estudiante['id']],
+                                            ['estado_asistencia', 'in', ['sale recreo', 'vuelve recreo']],
+                                            ['fecha', '>=', hoy_inicio.strftime('%Y-%m-%d %H:%M:%S')],
+                                            ['fecha', '<=', hoy_fin.strftime('%Y-%m-%d %H:%M:%S')]]],
+                                          {'fields': ['estado_asistencia', 'fecha'], 'order': 'fecha desc', 'limit': 1})
+        
+        # Determinar acción automáticamente
+        if not registros_hoy:
+            # Primera vez del día → Sale al recreo
+            nuevo_estado = 'sale recreo'
+            en_recreo = True
+        elif registros_hoy[0]['estado_asistencia'] == 'sale recreo':
+            # Último registro es salida → Vuelve del recreo
+            nuevo_estado = 'vuelve recreo'
+            en_recreo = False
+        else:
+            # Último registro es vuelta → Sale al recreo de nuevo
+            nuevo_estado = 'sale recreo'
+            en_recreo = True
+        
+        # Crear registro de asistencia
+        ejecutar_odoo_kw(DB, uid, PASSWORD,
+                         'acceso_ies.asistencia_estudiante', 'create',
+                         [{'estudiante_id': estudiante['id'], 'estado_asistencia': nuevo_estado}])
+        
+        # Actualizar campo en_recreo del estudiante
+        ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'write', 
+                          [[estudiante['id']], {'en_recreo': en_recreo}])
+        
+        estudiante['en_recreo'] = en_recreo
+        estudiante['ultima_accion'] = nuevo_estado
+        
+        return jsonify({
+            "status": "success", 
+            "data": [estudiante],
+            "accion": nuevo_estado,
+            "en_recreo": en_recreo
+        }), 200
+        
     except Exception as e:
-        return jsonify({"status": "error", "data": str(e)})
+        print(f"Error en salida_recreo: {e}")
+        return jsonify({"status": "error", "mensaje": str(e)}), 500
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard_data():
@@ -465,7 +537,7 @@ def get_dashboard_data():
         else:
             modelo = 'acceso_ies.estudiante'
             modelo_asistencia = 'acceso_ies.asistencia_estudiante'
-            campos = ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'recreo', 'salida_anticipada']
+            campos = ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'recreo', 'en_recreo', 'salida_anticipada']
 
         try:
             personas = ejecutar_odoo_kw(DB, uid, PASSWORD, modelo, 'search_read', [[]], {'fields': campos})
@@ -486,7 +558,8 @@ def get_dashboard_data():
                 "curso": p.get('curso'),
                 "departamento": p.get('departamento'),
                 "nfc_id": p.get('id_NFC') if p.get('id_NFC') else None,
-                "recreo": p.get('recreo', False), 
+                "recreo": p.get('recreo', False),
+                "en_recreo": p.get('en_recreo', False),
                 "salida_anticipada": p.get('salida_anticipada', False)
             })
 
@@ -537,7 +610,7 @@ def get_alumnado_completo():
     try:
         estudiantes = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', 
                                         [[]], 
-                                        {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento', 'recreo', 'salida_anticipada']})
+                                        {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento', 'recreo', 'en_recreo', 'salida_anticipada']})
         return jsonify({"status": "success", "data": estudiantes})
     except Exception as e:
         estudiantes = ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'search_read', [[]], {'fields': ['id', 'nombre', 'apellidos', 'curso', 'id_NFC', 'dni', 'fecha_nacimiento']})
@@ -822,7 +895,14 @@ def get_profesor():
                              {'fields': ['nombre', 'apellidos'], 'limit':1})
         
         if not resultado:
-           return jsonify({'status': 'error', 'data': 'Tarjeta NFC no registrada en el sistema.'}), 404
+            # Verificar si es un estudiante
+            estudiantes = ejecutar_odoo_kw(DB, uid, PASSWORD,
+                                     'acceso_ies.estudiante', 'search_read',
+                                     [[['id_NFC', '=', datos["nfc"]]]],
+                                     {'fields': ['nombre'], 'limit': 1})
+            if estudiantes:
+                return jsonify({'status': 'error', 'mensaje': f'Esta tarjeta pertenece al estudiante {estudiantes[0]["nombre"]}. No es un profesor.'}), 404
+            return jsonify({'status': 'error', 'mensaje': 'Tarjeta NFC no registrada en el sistema.'}), 404
         
         return jsonify({
             'status': 'success',
