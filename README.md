@@ -1,4 +1,4 @@
-# 🎓 Sistema de Control de Acceso NFC - IES San Juan de la Rambla
+# Sistema de Control de Acceso NFC - IES San Juan de la Rambla
 
 Sistema integral de gestión y control de asistencia mediante tecnología NFC para centros educativos. Desarrollado para el IES San Juan de la Rambla.
 
@@ -7,18 +7,18 @@ Sistema integral de gestión y control de asistencia mediante tecnología NFC pa
 ![Odoo](https://img.shields.io/badge/Odoo-18.0-purple.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-## 📋 Descripción
+## Descripción
 
 Sistema completo de control de acceso y gestión de asistencia que permite:
-- ✅ **Control de entrada/salida** de estudiantes y profesores mediante tarjetas NFC
-- 📊 **Gestión centralizada** desde panel web de jefatura de estudios
-- 🔔 **Registro automático** de llegadas tarde y salidas anticipadas
-- 📈 **Estadísticas en tiempo real** con gráficos interactivos
-- 🎯 **Gestión de permisos** de recreo y salidas según edad
-- 📁 **Exportación de datos** a CSV para informes
-- 🔄 **Integración con Odoo** para almacenamiento persistente
+- **Control de entrada/salida** de estudiantes y profesores mediante tarjetas NFC
+- **Gestión centralizada** desde panel web de jefatura de estudios
+- **Registro automático** de llegadas tarde y salidas anticipadas
+- **Estadísticas en tiempo real** con gráficos interactivos
+- **Gestión de permisos** de recreo y salidas según edad
+- **Exportación de datos** a CSV para informes
+- **Integración con Odoo** para almacenamiento persistente
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -42,31 +42,31 @@ Sistema completo de control de acceso y gestión de asistencia que permite:
 └─────────────────────────────────────────────────────────┘
 ```
 
-## 🚀 Características Principales
+## Características Principales
 
 ### Panel de Jefatura de Estudios
-- 📊 **Dashboard interactivo** con estadísticas en tiempo real
-- 👥 **Gestión de alumnado y profesorado** (CRUD completo)
-- 🏷️ **Vinculación/desvinculación de tarjetas NFC**
-- 📅 **Registro de asistencias** con filtros por fecha y tipo
-- 📥 **Importación masiva** de datos desde CSV
-- 📤 **Exportación de reportes** en formato CSV
-- 📈 **Gráficos dinámicos** (Chart.js) de asistencia semanal
+- **Dashboard interactivo** con estadísticas en tiempo real
+- **Gestión de alumnado y profesorado** (CRUD completo)
+- **Vinculación/desvinculación de tarjetas NFC**
+- **Registro de asistencias** con filtros por fecha y tipo
+- **Importación masiva** de datos desde CSV
+- **Exportación de reportes** en formato CSV
+- **Gráficos dinámicos** (Chart.js) de asistencia semanal
 
 ### Terminales NFC
-- 🎫 **Escáner de estudiantes**: Control de llegadas tarde y salidas anticipadas
-- 👨‍🏫 **Escáner de profesores**: Registro de entrada/salida del centro
-- ⚡ **Interfaz responsive** adaptada a tablets
-- 🎨 **Diseño intuitivo** con feedback visual inmediato
+- **Escáner de estudiantes**: Control de llegadas tarde y salidas anticipadas
+- **Escáner de profesores**: Registro de entrada/salida del centro
+- **Interfaz responsive** adaptada a tablets
+- **Diseño intuitivo** con feedback visual inmediato
 
 ### Backend API
-- 🔐 **Autenticación segura** mediante API Key
-- ✅ **Validaciones robustas** (DNI español, fechas, nombres, etc.)
-- 🔄 **Reconexión automática** a Odoo en caso de pérdida de conexión
-- 📝 **Logging completo** de operaciones
-- 🧪 **Suite de 44 tests** automatizados con pytest
+- **Autenticación segura** mediante API Key
+- **Validaciones robustas** (DNI español, fechas, nombres, etc.)
+- **Reconexión automática** a Odoo en caso de pérdida de conexión
+- **Logging completo** de operaciones
+- **Suite de 44 tests** automatizados con pytest
 
-## 📦 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 Check-in-NFC-Version-Previa-a-Final/
@@ -105,7 +105,7 @@ Check-in-NFC-Version-Previa-a-Final/
 └── GUIA_DESPLIEGUE.md              # Guía de instalación
 ```
 
-## 🛠️ Tecnologías Utilizadas
+## Tecnologías Utilizadas
 
 ### Backend
 - **Python 3.8+**
@@ -126,7 +126,7 @@ Check-in-NFC-Version-Previa-a-Final/
 - **Docker & Docker Compose** - Contenedorización de Odoo
 - **Git** - Control de versiones
 
-## 📥 Instalación
+## Instalación
 
 ### Prerrequisitos
 
@@ -204,7 +204,7 @@ El servidor estará disponible en `http://localhost:5000`
 - **Escáner Estudiantes**: `http://localhost:5000/Estudiantes`
 - **Escáner Profesores**: `http://localhost:5000/Profesores`
 
-## 🧪 Testing
+## Testing
 
 El proyecto incluye una suite completa de 44 tests automatizados:
 
@@ -219,15 +219,15 @@ python3 -m pytest test_app.py --quiet
 ```
 
 ### Cobertura de Tests
-- ✅ Validaciones (nombres, DNI, fechas)
-- ✅ Seguridad (API Key)
-- ✅ CRUD de estudiantes y profesores
-- ✅ Vinculación/desvinculación NFC
-- ✅ Registro de asistencias
-- ✅ Gestión de permisos de recreo
-- ✅ Consultas y filtros
+- Validaciones (nombres, DNI, fechas)
+- Seguridad (API Key)
+- CRUD de estudiantes y profesores
+- Vinculación/desvinculación NFC
+- Registro de asistencias
+- Gestión de permisos de recreo
+- Consultas y filtros
 
-## 📖 Uso del Sistema
+## Uso del Sistema
 
 ### Gestión de Alumnado
 
@@ -260,8 +260,8 @@ python3 -m pytest test_app.py --quiet
 - Seleccionar la acción deseada
 - Acercar tarjeta al lector en terminal de profesores
 - Sistema registra:
-  - ✅ Llegada al centro
-  - ✅ Salida del centro
+  - Llegada al centro
+  - Salida del centro
 
 ### Exportación de Datos
 
@@ -282,7 +282,7 @@ python3 -m pytest test_app.py --quiet
 4. Seleccionar archivo
 5. Revisar resultados de importación
 
-## 🔐 Seguridad
+## Seguridad
 
 ### API Key
 Todas las peticiones protegidas requieren header:
@@ -292,11 +292,11 @@ x-api-key: kartu_prosim
 
 ### Validaciones Implementadas
 
-- ✅ **DNI**: Validación de formato y letra correcta (algoritmo oficial)
-- ✅ **Nombres**: Solo caracteres alfabéticos, tildes y ñ
-- ✅ **Fechas**: Rango razonable de edad (10-80 años)
-- ✅ **NFC único**: No se pueden duplicar tarjetas
-- ✅ **Permisos**: Control de salidas según edad y configuración
+- **DNI**: Validación de formato y letra correcta (algoritmo oficial)
+- **Nombres**: Solo caracteres alfabéticos, tildes y ñ
+- **Fechas**: Rango razonable de edad (10-80 años)
+- **NFC único**: No se pueden duplicar tarjetas
+- **Permisos**: Control de salidas según edad y configuración
 
 ### Rutas Públicas (sin API Key)
 - `/` - Página principal
@@ -306,7 +306,7 @@ x-api-key: kartu_prosim
 - `/AsistenciaEstudiante` - Registro estudiante
 - `/AsistenciaProfesor` - Registro profesor
 
-## ⚙️ Configuración
+## Configuración
 
 ### Backend (app.py)
 ```python
@@ -333,7 +333,7 @@ ports:
   - "8072:8069"
 ```
 
-## 📊 Modelos de Datos
+## Modelos de Datos
 
 ### Estudiante
 - `nombre` (String, requerido)
@@ -364,7 +364,7 @@ ports:
 - `id_NFC` (String, relacionado)
 - `estado_asistencia` (Selection: 'llego al centro', 'sale del centro')
 
-## 🐛 Solución de Problemas
+## Solución de Problemas
 
 ### Error: Puerto 5000 en uso
 ```bash
@@ -398,22 +398,22 @@ pip install pytest
 python3 -m pytest --version
 ```
 
-## 📝 Documentación Adicional
+## Documentación Adicional
 
 - [GUIA_DESPLIEGUE.md](GUIA_DESPLIEGUE.md) - Guía completa de despliegue
 - [GUIA_USUARIO.md](GUIA_USUARIO.md) - Manual de usuario
 - [VALIDACIONES_IMPLEMENTADAS.md](VALIDACIONES_IMPLEMENTADAS.md) - Detalle de validaciones
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver archivo `LICENSE` para más detalles.
 
-## 👥 Autores
+## Autores
 
 - **Equipo de Desarrollo** - NFCitos
 - **Proyecto Final de Ciclo** - 2026
 
-## 🙏 Agradecimientos
+## Agradecimientos
 
 - IES San Juan de la Rambla por el apoyo al proyecto
 - Comunidad de Odoo por la documentación
