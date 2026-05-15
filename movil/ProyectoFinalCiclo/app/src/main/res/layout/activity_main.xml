@@ -76,7 +76,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:text="Holi"
+                android:text=""
                 android:textColor="@color/black"
                 android:textSize="20dp"
                 android:paddingStart="10dp"
@@ -163,7 +163,7 @@
             android:layout_weight="1"
             android:backgroundTint="#FFFFFF"
             app:icon="@drawable/baseline_qr_code_scanner_24"
-            app:iconGravity="textStart"
+            app:iconGravity="textTop"
             app:iconSize="48dp"
             app:iconTint="#000000">
         </Button>
@@ -176,7 +176,7 @@
             android:layout_weight="1"
             android:backgroundTint="#FFFFFF"
             app:icon="@drawable/baseline_account_circle_24"
-            app:iconGravity="textStart"
+            app:iconGravity="textTop"
             app:iconSize="48dp"
             app:iconTint="#000000">
         </Button>
@@ -191,7 +191,7 @@
             android:backgroundTint="#FFFFFF"
             app:iconTint="#000000"
             app:iconSize="48dp"
-            app:iconGravity="textStart">
+            app:iconGravity="textTop">
         </Button>
 
     </LinearLayout>

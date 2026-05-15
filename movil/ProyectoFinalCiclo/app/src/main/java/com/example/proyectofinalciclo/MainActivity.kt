@@ -48,6 +48,9 @@ class MainActivity : AppCompatActivity() {
     // Variable para rastrear si hay sesión de profesor activa
     private var sesionProfesorActiva: Boolean = false
 
+    // Variable para rastrear si hay sesión de profesor activa
+    private var sesionProfesorActiva: Boolean = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -91,7 +94,6 @@ class MainActivity : AppCompatActivity() {
                 siguiente_xml.visibility = View.VISIBLE
                 return@setOnClickListener
             }
-            
             // Limpiar completamente la UI al cambiar a modo escaneo
             estado.visibility = View.VISIBLE
             estadoSesion.visibility = View.GONE
