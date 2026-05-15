@@ -8,6 +8,7 @@ import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -29,6 +30,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 class MainActivity : AppCompatActivity() {
 
@@ -42,6 +44,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scan: Button
     private lateinit var profile: Button
     private lateinit var salir: Button
+
+    // Variable para rastrear si hay sesión de profesor activa
+    private var sesionProfesorActiva: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,24 +68,46 @@ class MainActivity : AppCompatActivity() {
         salir = findViewById(R.id.salir)
 
         siguiente_xml.setOnClickListener {
-            estado.text = "Escaneando alumno...";
-            estado.setTextColor(Color.BLACK);
+            // Limpiar completamente la UI para el siguiente escaneo
+            estado.text = "Escaneando alumno..."
+            estado.setTextColor(Color.BLACK)
+            estado.setPadding(0, 0, 0, 0)
             curso_xml.visibility = View.GONE
-            nombre_xml.text = "";
+            nombre_xml.text = ""
             nombre_xml.visibility = View.GONE
         }
 
         scan.setOnClickListener {
+            // Verificar si hay sesión activa antes de cambiar de pantalla
+            if (!sesionProfesorActiva) {
+                estado.visibility = View.VISIBLE
+                estadoSesion.visibility = View.GONE
+                estado.text = "Debes iniciar sesión como profesor primero"
+                estado.setTextColor(Color.RED)
+                estado.setPadding(0, 0, 0, 0)
+                curso_xml.visibility = View.GONE
+                nombre_xml.visibility = View.GONE
+                profesor_xml.visibility = View.GONE
+                siguiente_xml.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
+
+            // Limpiar completamente la UI al cambiar a modo escaneo
             estado.visibility = View.VISIBLE
             estadoSesion.visibility = View.GONE
-            estado.text = "Escaneando alumno...";
-            estado.setTextColor(Color.BLACK);
+            estado.text = "Escaneando alumno..."
+            estado.setTextColor(Color.BLACK)
+            estado.setPadding(0, 0, 0, 0)
             profesor_xml.visibility = View.GONE
+            curso_xml.visibility = View.GONE
+            nombre_xml.text = ""
+            nombre_xml.visibility = View.GONE
             siguiente_xml.visibility = View.VISIBLE
         }
 
         profile.setOnClickListener {
             if (estadoSesion.text.toString() == "Escanea tu tarjeta para iniciar sesión") {
+                // Modo inicio de sesión
                 estado.visibility = View.GONE
                 estadoSesion.visibility = View.VISIBLE
                 nombre_xml.visibility = View.GONE
@@ -88,10 +115,12 @@ class MainActivity : AppCompatActivity() {
                 siguiente_xml.visibility = View.GONE
             }
             else {
+                // Ya hay sesión iniciada - mostrar perfil del profesor
                 estadoSesion.visibility = View.VISIBLE
                 estado.visibility = View.GONE
                 nombre_xml.visibility = View.GONE
                 curso_xml.visibility = View.GONE
+                profesor_xml.visibility = View.VISIBLE
             }
         }
 
@@ -141,7 +170,16 @@ class MainActivity : AppCompatActivity() {
 
     private val client = OkHttpClient()
 
+    val apiKey = "kartu_prosim"
+
     private fun verificarSalidaRecreo(nfcId: String) {
+        // Verificar que hay sesión de profesor iniciada
+        if (!sesionProfesorActiva) {
+            estado.text = "Debes iniciar sesión como profesor primero"
+            estado.setTextColor(Color.RED)
+            estado.setPadding(0, 0, 0, 0)
+            return
+        }
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -156,6 +194,7 @@ class MainActivity : AppCompatActivity() {
                 val request = Request.Builder()
                     .url(url)
                     .post(body)
+                    .addHeader("x-api-key", apiKey)
                     .build()
 
                 val response = client.newCall(request).execute()
@@ -194,23 +233,52 @@ class MainActivity : AppCompatActivity() {
                         } else {
                             withContext(Dispatchers.Main) {
                                 estado.text = "El usuario no existe"
+                                estado.setTextColor(Color.RED)
+                                estado.setPadding(0, 0, 0, 0)
+                                nombre_xml.visibility = View.GONE
+                                curso_xml.visibility = View.GONE
                             }
                         }
 
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
                             estado.text = "No se ha encontrado al usuario en la base de datos"
+                            estado.setTextColor(Color.RED)
+                            estado.setPadding(0, 0, 0, 0)
+                            nombre_xml.visibility = View.GONE
+                            curso_xml.visibility = View.GONE
                         }
                     }
                 } else {
-                    withContext(Dispatchers.Main) {
-                        estado.text = "Error del servidor: Código ${response.code}"
+                    // Capturar el mensaje de error del servidor
+                    val respuestaString = response.body?.string() ?: ""
+                    try {
+                        val jsonRespuesta = JSONObject(respuestaString)
+                        val mensaje = jsonRespuesta.getString("mensaje")
+                        withContext(Dispatchers.Main) {
+                            estado.text = mensaje
+                            estado.setTextColor(Color.RED)
+                            estado.setPadding(0, 0, 0, 0)
+                            nombre_xml.visibility = View.GONE
+                            curso_xml.visibility = View.GONE
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            estado.text = "Error del servidor: Código ${response.code}"
+                            estado.setTextColor(Color.RED)
+                            estado.setPadding(0, 0, 0, 0)
+                            nombre_xml.visibility = View.GONE
+                            curso_xml.visibility = View.GONE
+                        }
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    estado.text = "Error de conexión: Verifica la red y que el servidor esté encendido."
-                    e.printStackTrace()
+                    estado.text = "Error: No se ha podido conectar al servidor. Comprueba estar en la misma red WiFi"
+                    estado.setTextColor(Color.RED)
+                    estado.setPadding(0, 0, 0, 0)
+                    nombre_xml.visibility = View.GONE
+                    curso_xml.visibility = View.GONE
                 }
             }
         }
@@ -230,6 +298,7 @@ class MainActivity : AppCompatActivity() {
 
                 val request = Request.Builder()
                     .url(url)
+                    .addHeader("x-api-key", apiKey)
                     .post(body)
                     .build()
 
@@ -250,6 +319,7 @@ class MainActivity : AppCompatActivity() {
                             val apellidos = profesor.getString("apellidos")
 
                             withContext(Dispatchers.Main) {
+                                sesionProfesorActiva = true
                                 estadoSesion.text = "Sesión iniciada"
                                 estadoSesion.setTextColor(Color.GREEN)
 
@@ -263,26 +333,55 @@ class MainActivity : AppCompatActivity() {
 
                         } else {
                             withContext(Dispatchers.Main) {
+                                sesionProfesorActiva = false
                                 estadoSesion.text = "Profesor no encontrado"
                                 estadoSesion.setTextColor(Color.RED)
+                                estadoSesion.setPadding(0, 0, 0, 0)
+                                profesor_xml.visibility = View.GONE
                             }
                         }
 
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
-                            estadoSesion.text = "Error procesando respuesta" + e
+                            sesionProfesorActiva = false
+                            estadoSesion.text = "Error procesando respuesta: ${e.message}"
+                            estadoSesion.setTextColor(Color.RED)
+                            estadoSesion.setPadding(0, 0, 0, 0)
+                            profesor_xml.visibility = View.GONE
                         }
                     }
 
                 } else {
-                    withContext(Dispatchers.Main) {
-                        estadoSesion.text = "Error servidor: ${response.code}"
+                    // Capturar el mensaje de error del servidor
+                    val respuestaString = response.body?.string() ?: ""
+                    try {
+                        val jsonRespuesta = JSONObject(respuestaString)
+                        val mensaje = jsonRespuesta.getString("mensaje")
+                        withContext(Dispatchers.Main) {
+                            sesionProfesorActiva = false
+                            estadoSesion.text = mensaje
+                            estadoSesion.setTextColor(Color.RED)
+                            estadoSesion.setPadding(0, 0, 0, 0)
+                            profesor_xml.visibility = View.GONE
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            sesionProfesorActiva = false
+                            estadoSesion.text = "Error servidor: ${response.code}"
+                            estadoSesion.setTextColor(Color.RED)
+                            estadoSesion.setPadding(0, 0, 0, 0)
+                            profesor_xml.visibility = View.GONE
+                        }
                     }
                 }
 
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    estadoSesion.text = "Error de conexión"
+                    sesionProfesorActiva = false
+                    estadoSesion.text = "Error de conexión: No se ha podido conectar al servidor"
+                    estadoSesion.setTextColor(Color.RED)
+                    estadoSesion.setPadding(0, 0, 0, 0)
+                    profesor_xml.visibility = View.GONE
                 }
             }
         }
