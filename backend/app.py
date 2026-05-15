@@ -465,6 +465,10 @@ def salida_recreo():
                 ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'write', 
                                 [[estudiante['id']], {'recreo': True}])
                 estudiante['recreo'] = True
+
+            else:
+                ejecutar_odoo_kw(DB, uid, PASSWORD, 'acceso_ies.estudiante', 'write', 
+                                [[estudiante['id']], {'recreo': False}])
         
         # Verificar si tiene permiso de recreo (calculado o guardado)
         if not tiene_permiso:
