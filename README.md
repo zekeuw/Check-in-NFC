@@ -5,7 +5,6 @@ Sistema integral de gestión y control de asistencia mediante tecnología NFC pa
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![Flask](https://img.shields.io/badge/Flask-3.0+-green.svg)
 ![Odoo](https://img.shields.io/badge/Odoo-18.0-purple.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 ## Descripción
 
@@ -403,10 +402,6 @@ python3 -m pytest --version
 - [GUIA_DESPLIEGUE.md](GUIA_DESPLIEGUE.md) - Guía completa de despliegue
 - [GUIA_USUARIO.md](GUIA_USUARIO.md) - Manual de usuario
 - [VALIDACIONES_IMPLEMENTADAS.md](VALIDACIONES_IMPLEMENTADAS.md) - Detalle de validaciones
-
-## Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver archivo `LICENSE` para más detalles.
 
 ## Autores
 
